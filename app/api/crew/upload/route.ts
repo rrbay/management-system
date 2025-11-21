@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import * as xlsx from 'xlsx';
 import { prisma } from '@/lib/prisma';
 
+export const runtime = 'nodejs';
+
 export async function POST(request: Request) {
   try {
     const formData = await request.formData();
