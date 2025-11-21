@@ -17,18 +17,30 @@ export async function POST(request: Request) {
     const workbook = xlsx.read(buffer, { type: 'buffer' });
     const sheetName = workbook.SheetNames[0];
 
-    // read header row as array
-    const rowsArray = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: null });
-    const headers: string[] = Array.isArray(rowsArray[0])
-      ? rowsArray[0].map((h) => (h === null || h === undefined ? '' : String(h).trim()))
+    // Read all rows including first row (merged cells)
+    const allRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: null });
+    
+    // Skip first row (merged cells), use second row as headers (index 1)
+    const headers: string[] = Array.isArray(allRows[1])
+      ? allRows[1].map((h) => (h === null || h === undefined ? '' : String(h).trim()))
       : [];
 
     if (headers.length === 0) {
-      return NextResponse.json({ error: 'No headers found in the sheet' }, { status: 400 });
+      return NextResponse.json({ error: 'No headers found in the sheet (row 2)' }, { status: 400 });
     }
 
-    // read as objects using header row
-    const json = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { defval: null });
+    // Read data starting from row 3 (index 2), using row 2 as headers
+    // We need to manually construct objects using headers from row 2 and data from row 3 onwards
+    const dataRows = allRows.slice(2); // Skip first 2 rows
+    const json = dataRows.map((row: any) => {
+      const obj: any = {};
+      headers.forEach((header, index) => {
+        if (header) { // Only add if header name exists
+          obj[header] = row[index] !== undefined && row[index] !== null ? row[index] : null;
+        }
+      });
+      return obj;
+    });
 
     // Create import record and crew members in database
     const crewImport = await prisma.crewImport.create({
