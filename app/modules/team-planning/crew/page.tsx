@@ -51,6 +51,14 @@ export default function CrewListPage() {
     load();
   }, [page]);
 
+  // Get all column names from rawData
+  const getAllColumns = () => {
+    if (data.length === 0 || !data[0].rawData) return [];
+    return Object.keys(data[0].rawData);
+  };
+
+  const columns = getAllColumns();
+
   if (loading) return <div className="p-6">Loading crew list...</div>;
 
   return (
@@ -70,41 +78,23 @@ export default function CrewListPage() {
             <table className="min-w-full">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Employee Code</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Full Name</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Rank</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Position</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Department</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Nationality</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Passport</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Email</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Phone</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Status</th>
-                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Source</th>
+                  {columns.map((col) => (
+                    <th key={col} className="px-3 py-2 text-left text-sm font-medium text-gray-700 whitespace-nowrap">
+                      {col}
+                    </th>
+                  ))}
                 </tr>
               </thead>
               <tbody>
                 {data.map((member, i) => (
                   <tr key={member.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.employeeCode || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.fullName || `${member.firstName || ''} ${member.lastName || ''}`.trim() || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.rank || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.position || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.department || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.nationality || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.passportNumber || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.email || '-'}</td>
-                    <td className="px-3 py-2 text-sm text-gray-800">{member.phone || '-'}</td>
-                    <td className="px-3 py-2 text-sm">
-                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
-                        member.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
-                        {member.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-sm text-gray-600">
-                      {member.import?.filename || '-'}
-                    </td>
+                    {columns.map((col) => (
+                      <td key={col} className="px-3 py-2 text-sm text-gray-800 whitespace-nowrap">
+                        {member.rawData?.[col] !== null && member.rawData?.[col] !== undefined 
+                          ? String(member.rawData[col]) 
+                          : '-'}
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
