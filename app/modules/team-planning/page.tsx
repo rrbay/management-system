@@ -52,13 +52,23 @@ export default function TeamPlanningPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Info Section */}
         <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-6 mb-12">
-          <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
-            Team Planning Module
-          </h2>
-          <p className="text-blue-800 dark:text-blue-200">
-            Easily plan team travels, make hotel reservations and manage transportation tickets 
-            from one place. Optimize costs with automatic price comparison and reporting features.
-          </p>
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <h2 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                Team Planning Module
+              </h2>
+              <p className="text-blue-800 dark:text-blue-200">
+                Easily plan team travels, make hotel reservations and manage transportation tickets 
+                from one place. Optimize costs with automatic price comparison and reporting features.
+              </p>
+            </div>
+            <Link
+              href="/modules/team-planning/admin"
+              className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              👥 Crew List
+            </Link>
+          </div>
         </div>
 
         {/* Sub Modules */}
