@@ -113,33 +113,62 @@ export default function CrewListPage() {
           <>
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
                   <thead className="bg-gray-50 dark:bg-gray-900">
                     <tr>
                       {columns.map((col, idx) => (
-                        <th 
+                        <th
                           key={idx}
-                          className="px-4 py-3 text-left text-xs font-semibold text-gray-700 dark:text-gray-300 uppercase tracking-wider whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                          className="sticky top-0 backdrop-blur bg-gray-50/95 dark:bg-gray-900/90 px-4 py-2 text-left font-semibold text-gray-700 dark:text-gray-300 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0 shadow-sm"
                         >
-                          {col}
+                          <span className="text-xs uppercase tracking-wide">{col}</span>
                         </th>
                       ))}
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                     {data.map((member, rowIdx) => (
-                      <tr 
+                      <tr
                         key={member.id} 
-                        className={rowIdx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/50'}
+                        className={`transition-colors ${rowIdx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/40'} hover:bg-blue-50 hover:dark:bg-blue-900/30`}
                       >
                         {columns.map((col, colIdx) => (
                           <td 
                             key={colIdx}
-                            className="px-4 py-3 text-sm text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0"
+                            className="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0 font-medium"
                           >
-                            {member.rawData?.[col] !== null && member.rawData?.[col] !== undefined 
-                              ? String(member.rawData[col]) 
-                              : ''}
+                            {(() => {
+                              const val = member.rawData?.[col];
+                              if (val === null || val === undefined || val === '') return '';
+                              // Excel serial date detection
+                              if (typeof val === 'number' && val > 25569 && val < 80000) {
+                                const date = new Date((val - 25569) * 86400 * 1000);
+                                return date.toLocaleDateString('tr-TR');
+                              }
+                              // Numeric string that might be excel date
+                              if (typeof val === 'string' && /^\d+$/.test(val)) {
+                                const num = Number(val);
+                                if (num > 25569 && num < 80000) {
+                                  const date = new Date((num - 25569) * 86400 * 1000);
+                                  return date.toLocaleDateString('tr-TR');
+                                }
+                              }
+                              // Pattern dates (dd.mm.yyyy, dd/mm/yyyy)
+                              if (typeof val === 'string' && /^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/.test(val)) {
+                                const m = val.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/)!;
+                                const d = m[1].padStart(2,'0');
+                                const mn = m[2].padStart(2,'0');
+                                let y = m[3];
+                                if (y.length === 2) y = Number(y) > 50 ? '19'+y : '20'+y;
+                                return `${d}.${mn}.${y}`;
+                              }
+                              // ISO date string
+                              if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+                                const [y,m,d] = val.split('-');
+                                return `${d}.${m}.${y}`;
+                              }
+                              return String(val);
+                            })()}
                           </td>
                         ))}
                       </tr>
@@ -151,21 +180,23 @@ export default function CrewListPage() {
 
             {/* Pagination */}
             {pages > 1 && (
-              <div className="mt-6 flex justify-center items-center gap-4">
+              <div className="mt-6 flex justify-center items-center gap-4 bg-white dark:bg-gray-800 rounded-lg p-4 shadow border border-gray-200 dark:border-gray-700 w-fit mx-auto">
                 <button
                   onClick={() => setPage(p => Math.max(1, p - 1))}
                   disabled={page === 1}
-                  className="px-6 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-5 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   ← Previous
                 </button>
-                <span className="px-4 py-2 text-gray-700 dark:text-gray-300 font-medium">
-                  Page {page} of {pages}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-gray-600 dark:text-gray-300 text-sm">Page</span>
+                  <span className="px-3 py-1 bg-blue-600 text-white rounded-md text-sm font-semibold shadow">{page}</span>
+                  <span className="text-gray-600 dark:text-gray-300 text-sm">/ {pages}</span>
+                </div>
                 <button
                   onClick={() => setPage(p => Math.min(pages, p + 1))}
                   disabled={page === pages}
-                  className="px-6 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="px-5 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   Next →
                 </button>

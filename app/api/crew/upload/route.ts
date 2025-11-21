@@ -51,18 +51,26 @@ export async function POST(request: Request) {
       return value;
     };
 
-    const json = dataRows.map((row: any) => {
-      const obj: any = {};
-      headers.forEach((header, index) => {
-        if (header) {
-          const cellValue = row[index];
-          obj[header] = formatCellValue(cellValue);
-        }
-      });
-      return obj;
-    }).filter(row => {
-      return Object.values(row).some(val => val !== null && val !== undefined && val !== '');
+    // Build normalized headers for internal mapping (preserve original for display)
+    const normalizedHeaderMap: Record<string, string> = {};
+    headers.forEach(h => {
+      const norm = h
+        .toLocaleLowerCase('tr')
+        .replace(/ı/g, 'i')
+        .replace(/[^a-z0-9]+/gi, '_')
+        .replace(/^_+|_+$/g, '');
+      normalizedHeaderMap[h] = norm;
     });
+
+    const json = dataRows.map((row: any) => {
+      const original: any = {};
+      headers.forEach((header, index) => {
+        if (!header) return;
+        const cellValue = row[index];
+        original[header] = formatCellValue(cellValue);
+      });
+      return original;
+    }).filter(row => Object.values(row).some(val => val !== null && val !== undefined && val !== ''));
 
     // Create import record and crew members in database
     const crewImport = await prisma.crewImport.create({
@@ -74,23 +82,61 @@ export async function POST(request: Request) {
     });
 
     // Map Excel rows to CrewMember records
-    const crewMembers = (json as any[]).map((row) => ({
-      employeeCode: row['Employee Code'] || row['Sicil'] || null,
-      firstName: row['First Name'] || row['Ad'] || null,
-      lastName: row['Last Name'] || row['Soyad'] || null,
-      fullName: row['Full Name'] || row['Ad Soyad'] || null,
-      rank: row['Rank'] || row['Rütbe'] || null,
-      position: row['Position'] || row['Pozisyon'] || null,
-      department: row['Department'] || row['Departman'] || null,
-      nationality: row['Nationality'] || row['Uyruk'] || null,
-      passportNumber: row['Passport Number'] || row['Pasaport No'] || null,
-      passportExpiry: row['Passport Expiry'] ? new Date(row['Passport Expiry']) : null,
-      email: row['Email'] || row['E-posta'] || null,
-      phone: row['Phone'] || row['Telefon'] || null,
-      status: 'ACTIVE',
-      rawData: row, // Store all original data
-      importId: crewImport.id,
-    }));
+    const pickFirst = (row: any, variants: string[]): any => {
+      for (const v of variants) {
+        if (row[v] !== undefined && row[v] !== null && row[v] !== '') return row[v];
+      }
+      return null;
+    };
+
+    const crewMembers = (json as any[]).map((row) => {
+      // Precompute lower-case key map for flexible matching
+      const lowerMap: Record<string,string> = {};
+      Object.keys(row).forEach(k => {
+        lowerMap[k.toLocaleLowerCase('tr')] = k;
+      });
+      const find = (variants: string[]) => {
+        for (const v of variants) {
+          const key = lowerMap[v.toLocaleLowerCase('tr')];
+          if (key && row[key] !== undefined && row[key] !== null && row[key] !== '') return row[key];
+        }
+        return null;
+      };
+      const passportExpiryRaw = find(['passport expiry','pasaport bitiş','pasaport bitiş tarihi','passport expire']);
+      let passportExpiry: Date | null = null;
+      if (passportExpiryRaw) {
+        if (passportExpiryRaw instanceof Date) passportExpiry = passportExpiryRaw;
+        else if (/^\d{4}-\d{2}-\d{2}$/.test(String(passportExpiryRaw))) passportExpiry = new Date(String(passportExpiryRaw));
+        else if (/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/.test(String(passportExpiryRaw))) {
+          const m = String(passportExpiryRaw).match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})$/)!;
+          const d = m[1].padStart(2,'0');
+          const mn = m[2].padStart(2,'0');
+          let y = m[3];
+          if (y.length === 2) y = Number(y) > 50 ? '19'+y : '20'+y;
+          passportExpiry = new Date(`${y}-${mn}-${d}`);
+        } else if (/^\d+$/.test(String(passportExpiryRaw))) {
+          const num = Number(passportExpiryRaw);
+          if (num > 25569 && num < 80000) passportExpiry = new Date((num - 25569) * 86400 * 1000);
+        }
+      }
+      return {
+        employeeCode: find(['employee code','sicil','personel no','crew id']),
+        firstName: find(['first name','ad','isim']),
+        lastName: find(['last name','soyad','surname']),
+        fullName: find(['full name','ad soyad','isim soyisim']) || ((find(['first name','ad','isim']) || '') + ' ' + (find(['last name','soyad','surname']) || '')).trim() || null,
+        rank: find(['rank','rütbe','unvan']),
+        position: find(['position','pozisyon','görev']),
+        department: find(['department','departman','bölüm']),
+        nationality: find(['nationality','uyruk','milliyet']),
+        passportNumber: find(['passport number','pasaport no','passport no']),
+        passportExpiry: passportExpiry,
+        email: find(['email','e-posta','mail']),
+        phone: find(['phone','telefon','gsm']),
+        status: 'ACTIVE',
+        rawData: row,
+        importId: crewImport.id,
+      };
+    });
 
     // Bulk insert crew members
     await prisma.crewMember.createMany({
