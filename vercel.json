@@ -1,0 +1,10 @@
+{
+  "framework": "nextjs",
+  "buildCommand": "npm run build",
+  "outputDirectory": ".next",
+  "devCommand": "npm run dev",
+  "ignoreCommand": "echo 'Vercel: using all files'",
+  "github": {
+    "silent": true
+  }
+}
