@@ -13,10 +13,12 @@
   "license": "ISC",
   "description": "İş Süreçleri Otomasyon Platformu",
   "dependencies": {
+    "@prisma/client": "^7.0.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.6",
     "@types/react-dom": "^19.2.3",
     "next": "^16.0.3",
+    "prisma": "^7.0.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "typescript": "^5.9.3",

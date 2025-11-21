@@ -1,0 +1,46 @@
+// Prisma schema for Management System
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model CrewMember {
+  id              String   @id @default(cuid())
+  employeeCode    String?  @unique
+  firstName       String?
+  lastName        String?
+  fullName        String?
+  rank            String?
+  position        String?
+  department      String?
+  nationality     String?
+  passportNumber  String?
+  passportExpiry  DateTime?
+  email           String?
+  phone           String?
+  status          String   @default("ACTIVE")
+  rawData         Json?    // Store all original Excel columns
+  importId        String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  import          CrewImport? @relation(fields: [importId], references: [id])
+
+  @@index([employeeCode])
+  @@index([status])
+}
+
+model CrewImport {
+  id          String        @id @default(cuid())
+  filename    String
+  rowCount    Int
+  headers     Json
+  uploadedAt  DateTime      @default(now())
+  members     CrewMember[]
+
+  @@index([uploadedAt])
+}

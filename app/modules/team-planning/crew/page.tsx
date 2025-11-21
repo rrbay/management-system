@@ -2,69 +2,138 @@
 
 import { useEffect, useState } from "react";
 
-type AnyObject = { [k: string]: any };
+type CrewMember = {
+  id: string;
+  employeeCode: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  fullName: string | null;
+  rank: string | null;
+  position: string | null;
+  department: string | null;
+  nationality: string | null;
+  passportNumber: string | null;
+  passportExpiry: string | null;
+  email: string | null;
+  phone: string | null;
+  status: string;
+  rawData: any;
+  import?: {
+    filename: string;
+    uploadedAt: string;
+  };
+};
 
 export default function CrewListPage() {
-  const [data, setData] = useState<AnyObject[]>([]);
-  const [headers, setHeaders] = useState<string[]>([]);
+  const [data, setData] = useState<CrewMember[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [pages, setPages] = useState(0);
 
   useEffect(() => {
     async function load() {
       setLoading(true);
       try {
-        const res = await fetch('/api/crew');
+        const res = await fetch(`/api/crew?page=${page}&limit=50`);
         const json = await res.json();
-        const rows = Array.isArray(json.data) ? json.data : [];
-        setData(rows);
-
-        // try to get headers from meta file
-        const metaRes = await fetch('/data/crew-meta.json');
-        if (metaRes.ok) {
-          const meta = await metaRes.json();
-          if (Array.isArray(meta.headers)) setHeaders(meta.headers);
+        setData(Array.isArray(json.data) ? json.data : []);
+        if (json.pagination) {
+          setTotal(json.pagination.total);
+          setPages(json.pagination.pages);
         }
       } catch (err) {
-        // ignore for now
+        console.error('Error loading crew:', err);
       } finally {
         setLoading(false);
       }
     }
     load();
-  }, []);
+  }, [page]);
 
   if (loading) return <div className="p-6">Loading crew list...</div>;
 
   return (
     <div className="p-6">
-      <h2 className="text-2xl font-semibold mb-4">Crew List</h2>
-      <div className="overflow-auto border rounded">
-        <table className="min-w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              {(headers.length ? headers : Object.keys(data[0] || {})).map((h) => (
-                <th key={h} className="px-3 py-2 text-left text-sm font-medium text-gray-700">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {data.map((row, i) => (
-              <tr key={i} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                {(headers.length ? headers : Object.keys(row)).map((col) => (
-                  <td key={col} className="px-3 py-2 text-sm text-gray-800 align-top">
-                    {String((row as AnyObject)[col] ?? '')}
-                  </td>
+      <div className="mb-4 flex justify-between items-center">
+        <h2 className="text-2xl font-semibold">Crew List ({total} total)</h2>
+        <a href="/modules/team-planning/admin" className="text-blue-600 hover:underline">
+          Back to Admin
+        </a>
+      </div>
+
+      {data.length === 0 ? (
+        <div className="text-gray-500">No crew members found. Upload an Excel file first.</div>
+      ) : (
+        <>
+          <div className="overflow-auto border rounded">
+            <table className="min-w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Employee Code</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Full Name</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Rank</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Position</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Department</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Nationality</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Passport</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Email</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Phone</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Status</th>
+                  <th className="px-3 py-2 text-left text-sm font-medium text-gray-700">Source</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.map((member, i) => (
+                  <tr key={member.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.employeeCode || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.fullName || `${member.firstName || ''} ${member.lastName || ''}`.trim() || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.rank || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.position || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.department || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.nationality || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.passportNumber || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.email || '-'}</td>
+                    <td className="px-3 py-2 text-sm text-gray-800">{member.phone || '-'}</td>
+                    <td className="px-3 py-2 text-sm">
+                      <span className={`inline-block px-2 py-1 rounded text-xs font-medium ${
+                        member.status === 'ACTIVE' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
+                      }`}>
+                        {member.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-sm text-gray-600">
+                      {member.import?.filename || '-'}
+                    </td>
+                  </tr>
                 ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="mt-4">
-        <a href="/modules/team-planning/admin" className="text-blue-600">Back to Admin</a>
-      </div>
+              </tbody>
+            </table>
+          </div>
+
+          {pages > 1 && (
+            <div className="mt-4 flex justify-center gap-2">
+              <button
+                onClick={() => setPage(p => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-50"
+              >
+                Previous
+              </button>
+              <span className="px-4 py-2">
+                Page {page} of {pages}
+              </span>
+              <button
+                onClick={() => setPage(p => Math.min(pages, p + 1))}
+                disabled={page === pages}
+                className="px-4 py-2 border rounded disabled:opacity-50 hover:bg-gray-50"
+              >
+                Next
+              </button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
