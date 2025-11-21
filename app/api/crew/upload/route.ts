@@ -14,15 +14,16 @@ export async function POST(request: Request) {
 
     const filename = (file as any).name || 'uploaded.xlsx';
     const buffer = Buffer.from(await file.arrayBuffer());
-    const workbook = xlsx.read(buffer, { type: 'buffer' });
+    const workbook = xlsx.read(buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
+    const sheet = workbook.Sheets[sheetName];
 
     // Read all rows including first row (merged cells)
-    const allRows = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1, defval: null });
+    const allRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null, raw: false });
     
     // Skip first row (merged cells), use second row as headers (index 1)
     const headers: string[] = Array.isArray(allRows[1])
-      ? allRows[1].map((h) => (h === null || h === undefined ? '' : String(h).trim()))
+      ? allRows[1].map((h) => (h === null || h === undefined ? '' : String(h).trim())).filter(h => h)
       : [];
 
     if (headers.length === 0) {
@@ -30,16 +31,37 @@ export async function POST(request: Request) {
     }
 
     // Read data starting from row 3 (index 2), using row 2 as headers
-    // We need to manually construct objects using headers from row 2 and data from row 3 onwards
-    const dataRows = allRows.slice(2); // Skip first 2 rows
+    const dataRows = allRows.slice(2);
+    
+    // Helper function to format cell value properly
+    const formatCellValue = (value: any): any => {
+      if (value === null || value === undefined) return null;
+      
+      // If it's already a Date object, format it
+      if (value instanceof Date) {
+        return value.toISOString().split('T')[0];
+      }
+      
+      // If it's a number that looks like an Excel date serial
+      if (typeof value === 'number' && value > 25569 && value < 73050) {
+        const date = new Date((value - 25569) * 86400 * 1000);
+        return date.toISOString().split('T')[0];
+      }
+      
+      return value;
+    };
+
     const json = dataRows.map((row: any) => {
       const obj: any = {};
       headers.forEach((header, index) => {
-        if (header) { // Only add if header name exists
-          obj[header] = row[index] !== undefined && row[index] !== null ? row[index] : null;
+        if (header) {
+          const cellValue = row[index];
+          obj[header] = formatCellValue(cellValue);
         }
       });
       return obj;
+    }).filter(row => {
+      return Object.values(row).some(val => val !== null && val !== undefined && val !== '');
     });
 
     // Create import record and crew members in database

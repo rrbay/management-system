@@ -33,6 +33,7 @@ export async function GET() {
       filename: latestImport.filename,
       uploadedAt: latestImport.uploadedAt,
       rowCount: latestImport.rowCount,
+        headers: latestImport.headers,
       daysSinceUpload,
       needsUpdate,
       message: needsUpdate 

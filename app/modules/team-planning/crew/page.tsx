@@ -19,6 +19,22 @@ export default function CrewListPage() {
   const [total, setTotal] = useState(0);
   const [pages, setPages] = useState(0);
 
+  const [columns, setColumns] = useState<string[]>([]);
+  useEffect(() => {
+    async function loadMeta() {
+      try {
+        const metaRes = await fetch('/api/crew/meta');
+        const metaData = await metaRes.json();
+        if (metaData.exists && Array.isArray(metaData.headers)) {
+          setColumns(metaData.headers);
+        }
+      } catch (err) {
+        console.error('Error loading metadata:', err);
+      }
+    }
+    loadMeta();
+  }, []);
+
   useEffect(() => {
     async function load() {
       setLoading(true);
@@ -38,9 +54,6 @@ export default function CrewListPage() {
     }
     load();
   }, [page]);
-
-  // Get all column names from rawData (Excel columns exactly as they are)
-  const columns = data.length > 0 && data[0].rawData ? Object.keys(data[0].rawData) : [];
 
   if (loading) {
     return (
