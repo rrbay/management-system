@@ -22,18 +22,34 @@ export async function POST(request: Request) {
     const allRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: '', raw: false });
     
     // Skip first row (merged cells), use second row as headers (index 1)
-    const headers: string[] = Array.isArray(allRows[1])
-      ? allRows[1].map((h) => {
-          if (h === null || h === undefined || h === '') return '';
-          return String(h).trim();
-        }).filter(h => h !== '')
-      : [];
+    // IMPORTANT: Keep ALL columns including empty header names
+    const rawHeaders: any[] = Array.isArray(allRows[1]) ? allRows[1] : [];
+    const maxColumns = Math.max(
+      rawHeaders.length,
+      ...allRows.slice(2).map((row: any) => Array.isArray(row) ? row.length : 0)
+    );
+    
+    // Generate headers for all columns, even if header cell is empty
+    const headers: string[] = [];
+    for (let i = 0; i < maxColumns; i++) {
+      let headerValue = rawHeaders[i];
+      if (headerValue === null || headerValue === undefined || headerValue === '') {
+        // Empty header - generate a placeholder name
+        headerValue = `Column_${i + 1}`;
+      } else {
+        headerValue = String(headerValue).trim();
+      }
+      // Convert İ to I in headers
+      headerValue = headerValue.replace(/İ/g, 'I').replace(/i̇/g, 'i');
+      headers.push(headerValue);
+    }
 
     if (headers.length === 0) {
-      return NextResponse.json({ error: 'No headers found in the sheet (row 2)' }, { status: 400 });
+      return NextResponse.json({ error: 'No columns found in the sheet' }, { status: 400 });
     }
 
     console.log('Extracted headers:', headers);
+    console.log('Total columns:', headers.length);
 
     // Read data starting from row 3 (index 2), using row 2 as headers
     const dataRows = allRows.slice(2);
@@ -69,11 +85,12 @@ export async function POST(request: Request) {
 
     const json = dataRows.map((row: any) => {
       const original: any = {};
-      headers.forEach((header, index) => {
-        if (!header) return;
-        const cellValue = Array.isArray(row) ? row[index] : undefined;
+      // Iterate through ALL columns (headers.length) to preserve empty columns
+      for (let i = 0; i < headers.length; i++) {
+        const header = headers[i];
+        const cellValue = Array.isArray(row) ? row[i] : undefined;
         original[header] = formatCellValue(cellValue);
-      });
+      }
       return original;
     }).filter(row => Object.values(row).some(val => val !== null && val !== undefined && val !== ''));
 
