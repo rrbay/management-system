@@ -116,20 +116,16 @@ export default function CrewListPage() {
                 <table className="min-w-full text-sm">
                   <thead>
                     <tr className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 dark:from-slate-800 dark:via-slate-900 dark:to-black">
-                      {columns.map((col, idx) => {
-                        // İ harfini I'ya çevir
-                        const displayCol = col.replace(/İ/g, 'I').replace(/i̇/g, 'i');
-                        return (
-                          <th
-                            key={idx}
-                            className="sticky top-0 px-6 py-4 text-left font-bold text-white whitespace-nowrap border-r border-slate-600/50 last:border-r-0 shadow-lg backdrop-blur-sm"
-                          >
-                            <span className="text-xs uppercase tracking-widest font-semibold drop-shadow-md">
-                              {displayCol}
-                            </span>
-                          </th>
-                        );
-                      })}
+                      {columns.map((col, idx) => (
+                        <th
+                          key={idx}
+                          className="sticky top-0 px-6 py-4 text-left font-bold text-white whitespace-nowrap border-r border-slate-600/50 last:border-r-0 shadow-lg backdrop-blur-sm"
+                        >
+                          <span className="text-xs uppercase tracking-widest font-semibold drop-shadow-md">
+                            {col}
+                          </span>
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
