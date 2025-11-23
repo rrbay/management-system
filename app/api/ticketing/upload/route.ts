@@ -18,9 +18,21 @@ export async function POST(request: Request) {
 
     // TicketUpload oluştur
     // @ts-ignore prisma client will include ticketUpload after generate
-    const upload = await prisma.ticketUpload.create({
-      data: { filename, headers },
-    });
+    let upload;
+    try {
+      upload = await prisma.ticketUpload.create({
+        data: { filename, headers },
+      });
+    } catch (e: any) {
+      // Tablo yoksa kullanıcıya açıklayıcı mesaj ver
+      if (e?.code === 'P2021' || /does not exist/i.test(String(e))) {
+        return NextResponse.json({
+          error: 'Ticketing tabloları veritabanında yok. Önce lokal olarak prisma db push ile TicketUpload ve TicketFlight tablolarını oluşturun.',
+          action: 'Run: prisma db push (direct 5432 connection).'
+        }, { status: 500 });
+      }
+      throw e;
+    }
 
     // Crew eşleme için tüm crewMembers çek (isim eşleme)
     const crewMembers = await prisma.crewMember.findMany({});
@@ -36,7 +48,8 @@ export async function POST(request: Request) {
       const nameKey = (r.crewName || '').toLowerCase();
       const crew = crewIndex[nameKey];
       // @ts-ignore prisma client will include ticketFlight after generate
-      await prisma.ticketFlight.create({
+      try {
+        await prisma.ticketFlight.create({
         data: {
           uploadId: upload.id,
           pairingRoute: r.pairingRoute,
@@ -56,7 +69,15 @@ export async function POST(request: Request) {
           crewMemberId: crew?.id,
           rawData: r.raw,
         },
-      });
+        });
+      } catch (e: any) {
+        if (e?.code === 'P2021' || /does not exist/i.test(String(e))) {
+          return NextResponse.json({
+            error: 'TicketFlight tablosu eksik. prisma db push çalıştırmanız gerekiyor.',
+          }, { status: 500 });
+        }
+        throw e;
+      }
     }
 
     // Eski yüklemeleri temizle (yalnızca son iki)
