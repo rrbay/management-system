@@ -3,9 +3,12 @@ import { airportInfoWithOffsetDynamic } from '@/lib/airports-dynamic';
 
 export const runtime = 'nodejs';
 
-export async function GET(_request: Request, { params }: { params: { code: string } }) {
+// Next.js 16 route signature for dynamic params may wrap params in a Promise.
+// Bu nedenle context.params'i await ediyoruz.
+export async function GET(_request: Request, context: { params: Promise<{ code: string }> }) {
   try {
-    const info = await airportInfoWithOffsetDynamic(params.code);
+    const { code } = await context.params;
+    const info = await airportInfoWithOffsetDynamic(code);
     if (!info) {
       return NextResponse.json({ error: 'Airport not found' }, { status: 404 });
     }
