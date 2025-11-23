@@ -19,7 +19,7 @@ export async function GET(request: Request) {
         where,
         skip,
         take: limit,
-        orderBy: { createdAt: 'desc' },
+        orderBy: { id: 'asc' },
         include: {
           import: {
             select: {

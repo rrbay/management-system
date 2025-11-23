@@ -121,7 +121,7 @@ export default function CrewListPage() {
                           key={idx}
                           className="sticky top-0 px-6 py-4 text-left font-bold text-white whitespace-nowrap border-r border-slate-600/50 last:border-r-0 shadow-lg backdrop-blur-sm"
                         >
-                          <span className="text-xs uppercase tracking-widest font-semibold drop-shadow-md">
+                          <span className="text-xs tracking-widest font-semibold drop-shadow-md">
                             {col}
                           </span>
                         </th>
