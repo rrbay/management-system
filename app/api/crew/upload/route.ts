@@ -79,6 +79,10 @@ export async function POST(request: Request) {
 
     console.log('First 2 data rows:', json.slice(0, 2));
 
+    // Delete all existing crew members and imports before inserting new data
+    await prisma.crewMember.deleteMany({});
+    await prisma.crewImport.deleteMany({});
+
     // Create import record and crew members in database
     const crewImport = await prisma.crewImport.create({
       data: {
