@@ -52,11 +52,8 @@ export async function POST(request: Request) {
               "rank" TEXT,
               "nationality" TEXT,
               "passportNumber" TEXT,
-              "passportExpiry" TIMESTAMP(3),
-              "citizenshipNo" TEXT,
               "dateOfBirth" TIMESTAMP(3),
               "gender" TEXT,
-              "phoneNumber" TEXT,
               "status" TEXT,
               "rawData" JSONB,
               "crewMemberId" TEXT,
@@ -67,15 +64,6 @@ export async function POST(request: Request) {
           
           await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "TicketFlight_uploadId_idx" ON "TicketFlight"("uploadId");`);
           await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "TicketFlight_pairingRoute_depDateTime_idx" ON "TicketFlight"("pairingRoute", "depDateTime");`);
-          
-          // Yeni kolonları ekle (tablo zaten varsa)
-          try {
-            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "passportExpiry" TIMESTAMP(3);`);
-            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "citizenshipNo" TEXT;`);
-            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "phoneNumber" TEXT;`);
-          } catch (alterErr) {
-            console.log('ALTER TABLE error (might be expected):', alterErr);
-          }
           
           // Tekrar dene
           upload = await prisma.ticketUpload.create({
@@ -116,18 +104,13 @@ export async function POST(request: Request) {
       const genderFromCrew = crew?.rawData?.['Gender'] || crew?.rawData?.['GEN'] || undefined;
       const dutyTypeFromCrew = crew?.rawData?.['DUTY TYPE'] || crew?.rawData?.['Duty Type'] || crew?.position || undefined;
       
-      // Passport expiry (Valid Until)
-      let passportExpiryFromCrew: Date | undefined = undefined;
-      if (crew?.passportExpiry) {
-        passportExpiryFromCrew = new Date(crew.passportExpiry);
-      } else if (crew?.rawData?.['Valid Until'] || crew?.rawData?.['VALID UNTIL']) {
-        try {
-          passportExpiryFromCrew = new Date(crew.rawData['Valid Until'] || crew.rawData['VALID UNTIL']);
-        } catch {}
-      }
-      
-      const citizenshipNoFromCrew = crew?.rawData?.['Citizenship No'] || crew?.rawData?.['CITIZENSHIP NO'] || undefined;
-      const phoneFromCrew = crew?.phone || crew?.rawData?.['Mobile Phone'] || crew?.rawData?.['MOBILE PHONE'] || undefined;
+      // Crew verilerini rawData'ya ekle
+      const enrichedRaw = {
+        ...r.raw,
+        _crewPassportExpiry: crew?.passportExpiry || crew?.rawData?.['Valid Until'] || crew?.rawData?.['VALID UNTIL'],
+        _crewCitizenshipNo: crew?.rawData?.['Citizenship No'] || crew?.rawData?.['CITIZENSHIP NO'],
+        _crewPhone: crew?.phone || crew?.rawData?.['Mobile Phone'] || crew?.rawData?.['MOBILE PHONE'],
+      };
       
       // @ts-ignore prisma client will include ticketFlight after generate
       await prisma.ticketFlight.create({
@@ -144,14 +127,11 @@ export async function POST(request: Request) {
           rank: r.rank || dutyTypeFromCrew,
           nationality: r.nationality || crew?.nationality || undefined,
           passportNumber: r.passportNumber || crew?.passportNumber || undefined,
-          passportExpiry: r.passportExpiry ?? passportExpiryFromCrew,
-          citizenshipNo: r.citizenshipNo || citizenshipNoFromCrew,
           dateOfBirth: r.dateOfBirth ?? dobFromCrew,
           gender: r.gender || genderFromCrew,
-          phoneNumber: r.phoneNumber || phoneFromCrew,
           status: r.status,
           crewMemberId: crew?.id || undefined,
-          rawData: r.raw,
+          rawData: enrichedRaw,
         },
       });
     }

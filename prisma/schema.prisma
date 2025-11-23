@@ -70,19 +70,16 @@ model TicketFlight {
   arrDateTime   DateTime?     // Excel ARR DATE sütunu (local saat)
   depPort       String?
   arrPort       String?
-  crewName       String?       // CREW NAME SURNAME
-  rank           String?       // RANK / Duty Type
-  nationality    String?
+  crewName      String?       // CREW NAME SURNAME
+  rank          String?       // RANK / Duty Type
+  nationality   String?
   passportNumber String?
-  passportExpiry DateTime?     // Valid Until from crew list
-  citizenshipNo  String?       // Citizenship No from crew list
-  dateOfBirth    DateTime?
-  gender         String?
-  phoneNumber    String?       // Mobile Phone from crew list
-  status         String?       // STATUS sütunu
-  rawData        Json?         // Tüm orijinal kolonlar
-  crewMemberId   String?
-  crewMember     CrewMember?   @relation(fields: [crewMemberId], references: [id])
+  dateOfBirth   DateTime?
+  gender        String?
+  status        String?       // STATUS sütunu
+  rawData       Json?         // Tüm orijinal kolonlar
+  crewMemberId  String?
+  crewMember    CrewMember?   @relation(fields: [crewMemberId], references: [id])
 
   @@index([uploadId])
   @@index([pairingRoute, depDateTime])

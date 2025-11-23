@@ -51,12 +51,21 @@ export function buildFlightTable(rows: NormalizedTicketRow[]): string {
     const rank = r.rank || '';
     const name = r.crewName || '';
     const passport = r.passportNumber || '';
-    const exp = r.passportExpiry ? formatDateLocal(r.passportExpiry).split(' ')[0] : '';
+    
+    // Passport expiry from rawData (crew list)
+    let exp = '';
+    if (r.raw._crewPassportExpiry) {
+      try {
+        const expDate = new Date(r.raw._crewPassportExpiry);
+        exp = formatDateLocal(expDate).split(' ')[0];
+      } catch {}
+    }
+    
     const dob = r.dateOfBirth ? formatDateLocal(r.dateOfBirth).split(' ')[0] : '';
     const nat = r.nationality || '';
-    const citizen = r.citizenshipNo || '';
+    const citizen = r.raw._crewCitizenshipNo || '';
     const gender = r.gender || '';
-    const phone = r.phoneNumber || '';
+    const phone = r.raw._crewPhone || '';
     
     html += '    <tr>\n';
     [rank,name,passport,exp,dob,nat,citizen,gender,phone].forEach(val => {

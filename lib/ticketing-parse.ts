@@ -18,11 +18,8 @@ export interface NormalizedTicketRow {
   rank?: string;
   nationality?: string;
   passportNumber?: string;
-  passportExpiry?: Date | null;
-  citizenshipNo?: string;
   dateOfBirth?: Date | null;
   gender?: string;
-  phoneNumber?: string;
   status?: string;
   raw: RawTicketRow;
 }
