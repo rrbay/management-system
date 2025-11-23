@@ -32,24 +32,42 @@ export function buildFlightHeader(rows: NormalizedTicketRow[]): string {
   return `${depDate} - ${airlineFlight} ${route} ${depTime} L / ${arrDate} ${arrTime} L`;
 }
 
-// Tablo: İlk satır header, sonra satırlar
+// Tablo: HTML tablo formatında
 export function buildFlightTable(rows: NormalizedTicketRow[]): string {
   const headerCols = ['Rank Type','Total Number of Crew','Passport','Exp.','Date of Birth','Nat.','Citizenship No','Gen','Phone Number'];
-  const lines: string[] = [];
-  lines.push(headerCols.join('\t'));
+  
+  let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px;">\n';
+  
+  // Header row
+  html += '  <thead>\n    <tr style="background-color: #f0f0f0; font-weight: bold;">\n';
+  headerCols.forEach(col => {
+    html += `      <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">${col}</th>\n`;
+  });
+  html += '    </tr>\n  </thead>\n';
+  
+  // Data rows
+  html += '  <tbody>\n';
   for (const r of rows) {
-    const rank = r.rank || '-';
-    const name = r.crewName || '-';
-    const passport = r.passportNumber || '-';
+    const rank = r.rank || '';
+    const name = r.crewName || '';
+    const passport = r.passportNumber || '';
     const exp = ''; // Pasaport bitişi crew listten ileride eklenebilir
-    const dob = r.dateOfBirth ? formatDateLocal(r.dateOfBirth).split(' ')[0] : '-';
-    const nat = r.nationality || '-';
+    const dob = r.dateOfBirth ? formatDateLocal(r.dateOfBirth).split(' ')[0] : '';
+    const nat = r.nationality || '';
     const citizen = ''; // Citizenship No ileride crewMember rawData'dan çekilebilir
-    const gender = r.gender || '-';
+    const gender = r.gender || '';
     const phone = ''; // Telefon: crewMember'dan eşleşince eklenebilir
-    lines.push([rank,name,passport,exp,dob,nat,citizen,gender,phone].join('\t'));
+    
+    html += '    <tr>\n';
+    [rank,name,passport,exp,dob,nat,citizen,gender,phone].forEach(val => {
+      html += `      <td style="border: 1px solid #ccc; padding: 8px;">${val}</td>\n`;
+    });
+    html += '    </tr>\n';
   }
-  return lines.join('\n');
+  html += '  </tbody>\n';
+  html += '</table>';
+  
+  return html;
 }
 
 export function buildEmailDraft(groups: { key: string; rows: NormalizedTicketRow[] }[]): string {

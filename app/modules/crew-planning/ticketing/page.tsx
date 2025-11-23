@@ -121,8 +121,16 @@ export default function TicketingPage() {
         </button>
         {emailDraft && (
           <div className="mt-4">
-            <textarea value={emailDraft} readOnly rows={15} className="w-full text-xs font-mono p-3 border rounded bg-gray-50 dark:bg-gray-700" />
-            <p className="text-xs text-gray-500 mt-2">Tab karakterleri \t şeklindedir. Mail istemcisinde tabloya dönüştürebilirsiniz.</p>
+            <div 
+              className="w-full p-4 border rounded bg-white dark:bg-gray-900 overflow-auto"
+              dangerouslySetInnerHTML={{ __html: emailDraft.replace(/\n/g, '<br/>') }}
+            />
+            <button 
+              onClick={() => navigator.clipboard.writeText(emailDraft)}
+              className="mt-3 px-3 py-1 text-sm bg-gray-600 text-white rounded hover:bg-gray-700"
+            >
+              HTML Kopyala
+            </button>
           </div>
         )}
       </section>
