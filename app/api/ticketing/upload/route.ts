@@ -92,6 +92,17 @@ export async function POST(request: Request) {
     for (const r of rows) {
       const nameKey = (r.crewName || '').toLowerCase();
       const crew = crewIndex[nameKey];
+      
+      // Crew data'dan güvenli bir şekilde veri al
+      let dobFromCrew: Date | undefined = undefined;
+      if (crew?.rawData && crew.rawData['DATE OF BIRTH']) {
+        try {
+          dobFromCrew = new Date(crew.rawData['DATE OF BIRTH']);
+        } catch {}
+      }
+      
+      const genderFromCrew = crew?.rawData?.['Gender'] || crew?.rawData?.['GEN'] || undefined;
+      
       // @ts-ignore prisma client will include ticketFlight after generate
       await prisma.ticketFlight.create({
         data: {
@@ -105,12 +116,12 @@ export async function POST(request: Request) {
           arrPort: r.arrPort,
           crewName: r.crewName,
           rank: r.rank,
-          nationality: r.nationality || crew?.nationality,
-          passportNumber: r.passportNumber || crew?.passportNumber,
-          dateOfBirth: r.dateOfBirth ?? crew?.rawData?.['DATE OF BIRTH'] ? new Date(crew.rawData['DATE OF BIRTH']) : undefined,
-          gender: r.gender || crew?.rawData?.['Gender'] || crew?.rawData?.['GEN'],
+          nationality: r.nationality || crew?.nationality || undefined,
+          passportNumber: r.passportNumber || crew?.passportNumber || undefined,
+          dateOfBirth: r.dateOfBirth ?? dobFromCrew,
+          gender: r.gender || genderFromCrew,
           status: r.status,
-          crewMemberId: crew?.id,
+          crewMemberId: crew?.id || undefined,
           rawData: r.raw,
         },
       });
