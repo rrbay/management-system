@@ -14,7 +14,7 @@ export default function CrewPlanningPage() {
       name: "Tickets Section",
       description: "Flight, bus and train ticket management",
       icon: "🎫",
-      href: "/modules/crew-planning/tickets",
+      href: "/modules/crew-planning/ticketing",
       color: "bg-indigo-600",
       features: ["Ticket Booking", "Travel Planning", "Cost Tracking"],
     },
@@ -64,6 +64,12 @@ export default function CrewPlanningPage() {
               className="ml-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
             >
               👥 Crew List
+            </Link>
+            <Link
+              href="/modules/airports"
+              className="ml-2 px-4 py-2 bg-cyan-600 hover:bg-cyan-700 text-white font-medium rounded-lg transition-colors whitespace-nowrap"
+            >
+              🌍 Airports
             </Link>
           </div>
         </div>
