@@ -52,8 +52,11 @@ export async function POST(request: Request) {
               "rank" TEXT,
               "nationality" TEXT,
               "passportNumber" TEXT,
+              "passportExpiry" TIMESTAMP(3),
+              "citizenshipNo" TEXT,
               "dateOfBirth" TIMESTAMP(3),
               "gender" TEXT,
+              "phoneNumber" TEXT,
               "status" TEXT,
               "rawData" JSONB,
               "crewMemberId" TEXT,
@@ -104,6 +107,19 @@ export async function POST(request: Request) {
       const genderFromCrew = crew?.rawData?.['Gender'] || crew?.rawData?.['GEN'] || undefined;
       const dutyTypeFromCrew = crew?.rawData?.['DUTY TYPE'] || crew?.rawData?.['Duty Type'] || crew?.position || undefined;
       
+      // Passport expiry (Valid Until)
+      let passportExpiryFromCrew: Date | undefined = undefined;
+      if (crew?.passportExpiry) {
+        passportExpiryFromCrew = new Date(crew.passportExpiry);
+      } else if (crew?.rawData?.['Valid Until'] || crew?.rawData?.['VALID UNTIL']) {
+        try {
+          passportExpiryFromCrew = new Date(crew.rawData['Valid Until'] || crew.rawData['VALID UNTIL']);
+        } catch {}
+      }
+      
+      const citizenshipNoFromCrew = crew?.rawData?.['Citizenship No'] || crew?.rawData?.['CITIZENSHIP NO'] || undefined;
+      const phoneFromCrew = crew?.phone || crew?.rawData?.['Mobile Phone'] || crew?.rawData?.['MOBILE PHONE'] || undefined;
+      
       // @ts-ignore prisma client will include ticketFlight after generate
       await prisma.ticketFlight.create({
         data: {
@@ -119,8 +135,11 @@ export async function POST(request: Request) {
           rank: r.rank || dutyTypeFromCrew,
           nationality: r.nationality || crew?.nationality || undefined,
           passportNumber: r.passportNumber || crew?.passportNumber || undefined,
+          passportExpiry: r.passportExpiry ?? passportExpiryFromCrew,
+          citizenshipNo: r.citizenshipNo || citizenshipNoFromCrew,
           dateOfBirth: r.dateOfBirth ?? dobFromCrew,
           gender: r.gender || genderFromCrew,
+          phoneNumber: r.phoneNumber || phoneFromCrew,
           status: r.status,
           crewMemberId: crew?.id || undefined,
           rawData: r.raw,
