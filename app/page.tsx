@@ -3,10 +3,10 @@ import Link from "next/link";
 export default function Home() {
   const modules = [
     {
-      name: "Team Planning",
+      name: "Crew Planning",
       description: "Hotel reservations and ticket management",
       icon: "✈️",
-      href: "/modules/team-planning",
+      href: "/modules/crew-planning",
       color: "bg-blue-500",
       subModules: ["Hotel Module", "Tickets Section"]
     },
