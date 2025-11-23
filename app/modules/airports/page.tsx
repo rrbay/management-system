@@ -57,7 +57,7 @@ export default function AirportsPage() {
       <header className="bg-white dark:bg-gray-800 shadow-sm border-b border-gray-200 dark:border-gray-700">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link href="/" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">← Ana Sayfa</Link>
+            <Link href="/modules/crew-planning" className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors">← Crew Planning</Link>
             <div className="border-l h-6 border-gray-300 dark:border-gray-600" />
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white flex items-center">
               <span className="text-3xl mr-2">🛫</span> Havalimanı Listesi
