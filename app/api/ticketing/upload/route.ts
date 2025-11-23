@@ -102,6 +102,7 @@ export async function POST(request: Request) {
       }
       
       const genderFromCrew = crew?.rawData?.['Gender'] || crew?.rawData?.['GEN'] || undefined;
+      const dutyTypeFromCrew = crew?.rawData?.['DUTY TYPE'] || crew?.rawData?.['Duty Type'] || crew?.position || undefined;
       
       // @ts-ignore prisma client will include ticketFlight after generate
       await prisma.ticketFlight.create({
@@ -115,7 +116,7 @@ export async function POST(request: Request) {
           depPort: r.depPort,
           arrPort: r.arrPort,
           crewName: r.crewName,
-          rank: r.rank,
+          rank: r.rank || dutyTypeFromCrew,
           nationality: r.nationality || crew?.nationality || undefined,
           passportNumber: r.passportNumber || crew?.passportNumber || undefined,
           dateOfBirth: r.dateOfBirth ?? dobFromCrew,

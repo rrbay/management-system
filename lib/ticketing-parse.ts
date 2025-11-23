@@ -96,7 +96,7 @@ export function parseTicketWorkbook(buffer: Buffer) {
     const depDateRaw = get(['DEP DATE','DEPARTURE DATE','DEP DATETIME']);
     const arrDateRaw = get(['ARR DATE','ARRIVAL DATE','ARR DATETIME']);
     const crewName = normalizeName(get(['CREW NAME SURNAME','NAME SURNAME','NAME']));
-    const rank = get(['RANK','DUTY','DUTY TYPE']);
+    const rank = get(['RANK','DUTY','DUTY TYPE','RANK TYPE']);
     const nationality = get(['NAT','NATIONALITY']);
     const passportNumber = get(['PASSPORT NUMBER','PASSPORT NO']);
     const dobRaw = get(['DATE OF BIRTH','BIRTH DATE']);
