@@ -36,10 +36,10 @@ export function buildFlightHeader(rows: NormalizedTicketRow[]): string {
 export function buildFlightTable(rows: NormalizedTicketRow[]): string {
   const headerCols = ['Rank Type','Total Number of Crew','Passport','Exp.','Date of Birth','Nat.','Citizenship No','Gen','Phone Number'];
   
-  let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px;">\n';
+  let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px; margin-top: 10px; margin-bottom: 10px;">\n';
   
   // Header row
-  html += '  <thead>\n    <tr style="background-color: #f0f0f0; font-weight: bold;">\n';
+  html += '  <thead>\n    <tr style="background-color: #4a5568; color: white; font-weight: bold;">\n';
   headerCols.forEach(col => {
     html += `      <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">${col}</th>\n`;
   });
@@ -60,7 +60,7 @@ export function buildFlightTable(rows: NormalizedTicketRow[]): string {
     
     html += '    <tr>\n';
     [rank,name,passport,exp,dob,nat,citizen,gender,phone].forEach(val => {
-      html += `      <td style="border: 1px solid #ccc; padding: 8px;">${val}</td>\n`;
+      html += `      <td style="border: 1px solid #ccc; padding: 8px; background-color: white; color: black;">${val}</td>\n`;
     });
     html += '    </tr>\n';
   }
@@ -71,14 +71,15 @@ export function buildFlightTable(rows: NormalizedTicketRow[]): string {
 }
 
 export function buildEmailDraft(groups: { key: string; rows: NormalizedTicketRow[] }[]): string {
-  const parts: string[] = [];
-  parts.push('Dear Colleagues,');
-  parts.push('We need ticket belowing flights;');
-  parts.push('');
+  let html = '<div style="font-family: Arial, sans-serif; color: black;">\n';
+  html += '<p style="margin-bottom: 5px;">Dear Colleagues,</p>\n';
+  html += '<p style="margin-top: 5px; margin-bottom: 15px;">We need ticket belowing flights;</p>\n';
+  
   for (const g of groups) {
-    parts.push(buildFlightHeader(g.rows));
-    parts.push(buildFlightTable(g.rows));
-    parts.push('');
+    html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${buildFlightHeader(g.rows)}</p>\n`;
+    html += buildFlightTable(g.rows);
   }
-  return parts.join('\n');
+  
+  html += '</div>';
+  return html;
 }

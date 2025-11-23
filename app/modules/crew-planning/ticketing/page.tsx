@@ -122,8 +122,9 @@ export default function TicketingPage() {
         {emailDraft && (
           <div className="mt-4">
             <div 
-              className="w-full p-4 border rounded bg-white dark:bg-gray-900 overflow-auto"
-              dangerouslySetInnerHTML={{ __html: emailDraft.replace(/\n/g, '<br/>') }}
+              className="w-full p-4 border rounded overflow-auto"
+              style={{ backgroundColor: 'white', color: 'black' }}
+              dangerouslySetInnerHTML={{ __html: emailDraft }}
             />
             <button 
               onClick={() => navigator.clipboard.writeText(emailDraft)}
