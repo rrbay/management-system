@@ -111,31 +111,41 @@ export default function CrewListPage() {
           </div>
         ) : (
           <>
-            <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
+            <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl overflow-hidden border-2 border-gray-100 dark:border-gray-700">
               <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
-                  <thead className="bg-gradient-to-r from-blue-600 to-blue-700 dark:from-blue-700 dark:to-blue-800">
-                    <tr>
-                      {columns.map((col, idx) => (
-                        <th
-                          key={idx}
-                          className="sticky top-0 backdrop-blur bg-blue-600/95 dark:bg-blue-700/95 px-4 py-3 text-left font-bold text-white whitespace-nowrap border-r border-blue-500 dark:border-blue-600 last:border-r-0 shadow-md"
-                        >
-                          <span className="text-xs uppercase tracking-wider">{col.replace(/İ/g, 'I')}</span>
-                        </th>
-                      ))}
+                <table className="min-w-full text-sm">
+                  <thead>
+                    <tr className="bg-gradient-to-r from-slate-700 via-slate-800 to-slate-900 dark:from-slate-800 dark:via-slate-900 dark:to-black">
+                      {columns.map((col, idx) => {
+                        // İ harfini I'ya çevir
+                        const displayCol = col.replace(/İ/g, 'I').replace(/i̇/g, 'i');
+                        return (
+                          <th
+                            key={idx}
+                            className="sticky top-0 px-6 py-4 text-left font-bold text-white whitespace-nowrap border-r border-slate-600/50 last:border-r-0 shadow-lg backdrop-blur-sm"
+                          >
+                            <span className="text-xs uppercase tracking-widest font-semibold drop-shadow-md">
+                              {displayCol}
+                            </span>
+                          </th>
+                        );
+                      })}
                     </tr>
                   </thead>
-                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-700/50">
                     {data.map((member, rowIdx) => (
                       <tr
                         key={member.id} 
-                        className={`transition-colors ${rowIdx % 2 === 0 ? 'bg-white dark:bg-gray-800' : 'bg-gray-50 dark:bg-gray-900/40'} hover:bg-blue-50 hover:dark:bg-blue-900/30`}
+                        className={`transition-all duration-150 ${
+                          rowIdx % 2 === 0 
+                            ? 'bg-white dark:bg-gray-800' 
+                            : 'bg-gray-50/50 dark:bg-gray-900/30'
+                        } hover:bg-blue-50 hover:dark:bg-blue-900/20 hover:shadow-md`}
                       >
                         {columns.map((col, colIdx) => (
                           <td 
                             key={colIdx}
-                            className="px-4 py-2 text-gray-900 dark:text-gray-100 whitespace-nowrap border-r border-gray-200 dark:border-gray-700 last:border-r-0 font-medium"
+                            className="px-6 py-3 text-gray-800 dark:text-gray-100 whitespace-nowrap border-r border-gray-100 dark:border-gray-700/30 last:border-r-0 text-sm"
                           >
                             {(() => {
                               const val = member.rawData?.[col];
