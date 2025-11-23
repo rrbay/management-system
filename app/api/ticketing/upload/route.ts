@@ -27,9 +27,13 @@ export async function POST(request: Request) {
       // Tablo yoksa otomatik oluştur
       if (e?.code === 'P2021' || /does not exist/i.test(String(e))) {
         try {
+          // Eski tabloları sil ve yeniden oluştur (schema güncellemesi için)
+          await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "TicketFlight" CASCADE;`);
+          await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "TicketUpload" CASCADE;`);
+          
           // Tabloları oluştur
           await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS "TicketUpload" (
+            CREATE TABLE "TicketUpload" (
               "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
               "filename" TEXT NOT NULL,
               "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,7 +42,7 @@ export async function POST(request: Request) {
           `);
           
           await prisma.$executeRawUnsafe(`
-            CREATE TABLE IF NOT EXISTS "TicketFlight" (
+            CREATE TABLE "TicketFlight" (
               "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
               "uploadId" TEXT NOT NULL,
               "pairingRoute" TEXT,
