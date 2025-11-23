@@ -61,11 +61,24 @@ export function parseTicketWorkbook(buffer: Buffer) {
   const wb = xlsx.read(buffer, { type: 'buffer', cellDates: true });
   const sheetName = wb.SheetNames[0];
   const sheet = wb.Sheets[sheetName];
-  const rows = xlsx.utils.sheet_to_json(sheet, { defval: null });
-  const headersRow = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null })[0] as any[];
+  
+  // İlk satır başlık satırıdır, veri ikinci satırdan başlar
+  const allRows = xlsx.utils.sheet_to_json(sheet, { header: 1, defval: null }) as any[][];
+  if (allRows.length < 2) return { headers: [], rows: [] }; // Boş veya sadece başlık varsa
+  
+  const headersRow = allRows[0];
   const headers = Array.isArray(headersRow) ? headersRow.map(h => h === null ? '' : String(h)) : [];
+  
+  // Başlık satırını kullanarak veri satırlarını objelere dönüştür
+  const rows = allRows.slice(1).map(row => {
+    const obj: any = {};
+    headers.forEach((header, idx) => {
+      obj[header] = row[idx] !== undefined ? row[idx] : null;
+    });
+    return obj;
+  }).filter(row => Object.values(row).some(v => v !== null && v !== ''));
 
-  const mapped: NormalizedTicketRow[] = (rows as any[]).map(r => {
+  const mapped: NormalizedTicketRow[] = rows.map(r => {
     const obj: RawTicketRow = r;
     const get = (variants: string[]): any => {
       for (const v of variants) {
