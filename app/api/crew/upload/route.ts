@@ -39,8 +39,7 @@ export async function POST(request: Request) {
       } else {
         headerValue = String(headerValue).trim();
       }
-      // Convert İ to I in headers
-      headerValue = headerValue.replace(/İ/g, 'I').replace(/i̇/g, 'i');
+      // DON'T convert İ to I - keep original Excel headers exactly as they are
       headers.push(headerValue);
     }
 
