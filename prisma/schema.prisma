@@ -30,6 +30,7 @@ model CrewMember {
   updatedAt       DateTime @updatedAt
 
   import          CrewImport? @relation(fields: [importId], references: [id])
+  ticketFlights   TicketFlight[]
 
   @@index([employeeCode])
   @@index([status])
