@@ -68,6 +68,15 @@ export async function POST(request: Request) {
           await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "TicketFlight_uploadId_idx" ON "TicketFlight"("uploadId");`);
           await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "TicketFlight_pairingRoute_depDateTime_idx" ON "TicketFlight"("pairingRoute", "depDateTime");`);
           
+          // Yeni kolonları ekle (tablo zaten varsa)
+          try {
+            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "passportExpiry" TIMESTAMP(3);`);
+            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "citizenshipNo" TEXT;`);
+            await prisma.$executeRawUnsafe(`ALTER TABLE "TicketFlight" ADD COLUMN IF NOT EXISTS "phoneNumber" TEXT;`);
+          } catch (alterErr) {
+            console.log('ALTER TABLE error (might be expected):', alterErr);
+          }
+          
           // Tekrar dene
           upload = await prisma.ticketUpload.create({
             data: { filename, headers },
