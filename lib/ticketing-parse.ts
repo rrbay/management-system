@@ -5,15 +5,23 @@ import { findAirportDynamic, getUtcOffsetHours } from './airports-dynamic';
 
 // GMT+0 tarihini verilen port için local time'a çevir (dinamik havalimanı veritabanı kullanarak)
 async function convertToLocalTime(gmtDate: Date | null, portCode: string | undefined): Promise<Date | null> {
-  if (!gmtDate || !portCode) return gmtDate;
+  if (!gmtDate || !portCode) {
+    console.log(`[Timezone] Skipping conversion - gmtDate: ${gmtDate}, portCode: ${portCode}`);
+    return gmtDate;
+  }
   
   try {
     const airport = await findAirportDynamic(portCode);
-    if (!airport || !airport.tz) return gmtDate; // Havalimanı bulunamazsa GMT+0 kalsın
+    if (!airport || !airport.tz) {
+      console.warn(`[Timezone] Airport not found or no timezone for ${portCode}`);
+      return gmtDate; // Havalimanı bulunamazsa GMT+0 kalsın
+    }
     
     const offsetHours = getUtcOffsetHours(airport.tz, gmtDate);
     const localDate = new Date(gmtDate);
     localDate.setHours(localDate.getHours() + offsetHours);
+    
+    console.log(`[Timezone] ${portCode}: GMT ${gmtDate.toISOString()} -> Local ${localDate.toISOString()} (offset: ${offsetHours}h, tz: ${airport.tz})`);
     return localDate;
   } catch (err) {
     console.warn(`[Ticketing] Timezone conversion failed for ${portCode}:`, err);
@@ -46,7 +54,10 @@ export interface NormalizedTicketRow {
 // Excel tarih/saat hücresi farklı formatlarda olabilir.
 function parseDateTime(value: any): Date | null {
   if (!value) return null;
-  if (value instanceof Date) return value;
+  if (value instanceof Date) {
+    console.log(`[parseDateTime] Already Date object: ${value.toISOString()}`);
+    return value;
+  }
   const s = String(value).trim();
   // 21/11/2025 18:25:00 veya 21.11.2025 18:25
   const m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
@@ -58,15 +69,20 @@ function parseDateTime(value: any): Date | null {
     const hh = m[4] ? m[4].padStart(2,'0') : '00';
     const mm = m[5] ? m[5] : '00';
     const ss = m[6] ? m[6] : '00';
-    return new Date(`${y}-${mn}-${d}T${hh}:${mm}:${ss}`);
+    const parsed = new Date(`${y}-${mn}-${d}T${hh}:${mm}:${ss}`);
+    console.log(`[parseDateTime] String "${s}" -> ${parsed.toISOString()}`);
+    return parsed;
   }
   // Excel seri numarası
   if (/^\d+$/.test(s)) {
     const num = Number(s);
     if (num > 25569 && num < 80000) {
-      return new Date((num - 25569) * 86400 * 1000);
+      const parsed = new Date((num - 25569) * 86400 * 1000);
+      console.log(`[parseDateTime] Excel serial ${num} -> ${parsed.toISOString()}`);
+      return parsed;
     }
   }
+  console.warn(`[parseDateTime] Could not parse: "${s}"`);
   return null;
 }
 
@@ -77,7 +93,9 @@ function normalizeName(name: string | undefined): string | undefined {
 }
 
 export async function parseTicketWorkbook(buffer: Buffer) {
-  const wb = xlsx.read(buffer, { type: 'buffer', cellDates: true });
+  // cellDates: false kullanarak ham string/serial değerleri alıyoruz, 
+  // böylece GMT+0 olarak parse edip local'e çevirebiliriz
+  const wb = xlsx.read(buffer, { type: 'buffer', cellDates: false });
   const sheetName = wb.SheetNames[0];
   const sheet = wb.Sheets[sheetName];
   
@@ -108,13 +126,13 @@ export async function parseTicketWorkbook(buffer: Buffer) {
       return null;
     };
     const pairingRoute = get(['PAIRING ROUTE','ROUTE','PAIRING']);
-    const flightNumber = get(['FLTNO','FLIGHT NO','FLIGHT NUMBER']);
+    const flightNumber = get(['FLT NO','FLTNO','FLIGHT NO','FLIGHT NUMBER']);
     const airline = get(['AIRLINE']);
     const depPort = get(['DEP PORT','DEPARTURE PORT','ORIGIN']);
     const arrPort = get(['ARR PORT','ARRIVAL PORT','DEST']);
     const depDateRaw = get(['DEP DATE','DEPARTURE DATE','DEP DATETIME']);
     const arrDateRaw = get(['ARR DATE','ARRIVAL DATE','ARR DATETIME']);
-    const crewName = normalizeName(get(['CREW NAME SURNAME','NAME SURNAME','NAME']));
+    const crewName = normalizeName(get(['RESERVED CREW LIST','CREW NAME SURNAME','NAME SURNAME','NAME']));
     const rank = get(['RANK','DUTY','DUTY TYPE','RANK TYPE']);
     const nationality = get(['NAT','NATIONALITY']);
     const passportNumber = get(['PASSPORT NUMBER','PASSPORT NO']);
