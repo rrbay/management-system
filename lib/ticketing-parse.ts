@@ -1,29 +1,24 @@
 // Ticketing Excel parse utilities
 // Türkçe açıklamalar iş mantığını açıklar.
 import * as xlsx from 'xlsx';
+import { findAirportDynamic, getUtcOffsetHours } from './airports-dynamic';
 
-// Havalimanı timezone offset'leri (GMT+0'dan fark, saat cinsinden)
-const AIRPORT_TIMEZONES: Record<string, number> = {
-  'IST': 3,  // Istanbul GMT+3
-  'AYT': 3,  // Antalya GMT+3
-  'ESB': 3,  // Ankara GMT+3
-  'ADB': 3,  // Izmir GMT+3
-  'SAW': 3,  // Sabiha Gokcen GMT+3
-  'DLM': 3,  // Dalaman GMT+3
-  'BJV': 3,  // Bodrum GMT+3
-  'GZT': 3,  // Gaziantep GMT+3
-  'TZX': 3,  // Trabzon GMT+3
-  // Gerekirse başka havalimanları eklenebilir
-};
-
-// GMT+0 tarihini verilen port için local time'a çevir
-function convertToLocalTime(gmtDate: Date | null, portCode: string | undefined): Date | null {
+// GMT+0 tarihini verilen port için local time'a çevir (dinamik havalimanı veritabanı kullanarak)
+async function convertToLocalTime(gmtDate: Date | null, portCode: string | undefined): Promise<Date | null> {
   if (!gmtDate || !portCode) return gmtDate;
-  const offset = AIRPORT_TIMEZONES[portCode.toUpperCase()];
-  if (offset === undefined) return gmtDate; // Bilinmeyen port, GMT+0 kalsın
-  const localDate = new Date(gmtDate);
-  localDate.setHours(localDate.getHours() + offset);
-  return localDate;
+  
+  try {
+    const airport = await findAirportDynamic(portCode);
+    if (!airport || !airport.tz) return gmtDate; // Havalimanı bulunamazsa GMT+0 kalsın
+    
+    const offsetHours = getUtcOffsetHours(airport.tz, gmtDate);
+    const localDate = new Date(gmtDate);
+    localDate.setHours(localDate.getHours() + offsetHours);
+    return localDate;
+  } catch (err) {
+    console.warn(`[Ticketing] Timezone conversion failed for ${portCode}:`, err);
+    return gmtDate; // Hata durumunda GMT+0 kalsın
+  }
 }
 
 export interface RawTicketRow {
@@ -81,7 +76,7 @@ function normalizeName(name: string | undefined): string | undefined {
   return name.replace(/\s+/g,' ').trim();
 }
 
-export function parseTicketWorkbook(buffer: Buffer) {
+export async function parseTicketWorkbook(buffer: Buffer) {
   const wb = xlsx.read(buffer, { type: 'buffer', cellDates: true });
   const sheetName = wb.SheetNames[0];
   const sheet = wb.Sheets[sheetName];
@@ -102,7 +97,7 @@ export function parseTicketWorkbook(buffer: Buffer) {
     return obj;
   }).filter(row => Object.values(row).some(v => v !== null && v !== ''));
 
-  const mapped: NormalizedTicketRow[] = rows.map(r => {
+  const mapped: NormalizedTicketRow[] = await Promise.all(rows.map(async r => {
     const obj: RawTicketRow = r;
     const get = (variants: string[]): any => {
       for (const v of variants) {
@@ -136,8 +131,8 @@ export function parseTicketWorkbook(buffer: Buffer) {
       pairingRoute: pairingRoute ? String(pairingRoute).trim() : undefined,
       flightNumber: flightNumber ? String(flightNumber).trim() : undefined,
       airline: airline ? String(airline).trim() : undefined,
-      depDateTime: convertToLocalTime(depDateTimeGMT, depPortStr),
-      arrDateTime: convertToLocalTime(arrDateTimeGMT, arrPortStr),
+      depDateTime: await convertToLocalTime(depDateTimeGMT, depPortStr),
+      arrDateTime: await convertToLocalTime(arrDateTimeGMT, arrPortStr),
       depPort: depPortStr,
       arrPort: arrPortStr,
       crewName,
@@ -149,9 +144,11 @@ export function parseTicketWorkbook(buffer: Buffer) {
       status: status ? String(status).trim() : undefined,
       raw: obj,
     };
-  }).filter(r => r.pairingRoute || r.flightNumber || r.crewName);
+  }));
+  
+  const filtered = mapped.filter(r => r.pairingRoute || r.flightNumber || r.crewName);
 
-  return { headers, rows: mapped };
+  return { headers, rows: filtered };
 }
 
 // Uçuş grup anahtarı üretimi (aynı pairingRoute + kalkış tarih-saat + flightNumber + airline)
