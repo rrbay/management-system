@@ -62,14 +62,15 @@ function parseDateTime(value: any): Date | null {
   // 21/11/2025 18:25:00 veya 21.11.2025 18:25
   const m = s.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{2,4})(?:\s+(\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
   if (m) {
-    let d = m[1].padStart(2,'0');
-    let mn = m[2].padStart(2,'0');
+    let d = parseInt(m[1]);
+    let mn = parseInt(m[2]);
     let y = m[3];
     if (y.length === 2) y = Number(y) > 50 ? '19'+y : '20'+y;
-    const hh = m[4] ? m[4].padStart(2,'0') : '00';
-    const mm = m[5] ? m[5] : '00';
-    const ss = m[6] ? m[6] : '00';
-    const parsed = new Date(`${y}-${mn}-${d}T${hh}:${mm}:${ss}`);
+    const hh = m[4] ? parseInt(m[4]) : 0;
+    const mm = m[5] ? parseInt(m[5]) : 0;
+    const ss = m[6] ? parseInt(m[6]) : 0;
+    // Date.UTC kullanarak UTC timestamp oluştur (GMT+0 olarak parse et)
+    const parsed = new Date(Date.UTC(parseInt(y), mn - 1, d, hh, mm, ss));
     console.log(`[parseDateTime] String "${s}" -> ${parsed.toISOString()}`);
     return parsed;
   }
@@ -164,7 +165,8 @@ export async function parseTicketWorkbook(buffer: Buffer) {
     };
   }));
   
-  const filtered = mapped.filter(r => r.pairingRoute || r.flightNumber || r.crewName);
+  // RESERVED CREW LIST boş olan satırları filtrele (crew name zorunlu)
+  const filtered = mapped.filter(r => r.crewName && r.crewName.trim() !== '');
 
   return { headers, rows: filtered };
 }
