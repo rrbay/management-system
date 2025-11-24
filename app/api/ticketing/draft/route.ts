@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { groupFlights } from '@/lib/ticketing-parse';
-import { buildEmailDraft } from '@/lib/mail-ticketing-template';
+import { buildEmailDraftWithDiff } from '@/lib/mail-ticketing-template';
+import { diffFlights } from '@/lib/ticketing-diff';
 
 export const runtime = 'nodejs';
 
@@ -12,9 +13,17 @@ export async function GET(request: Request) {
     const debug = searchParams.get('debug');
     if (!uploadId) return NextResponse.json({ error: 'uploadId required' }, { status: 400 });
 
+    // Son 2 upload'u çek (diff için)
+    // @ts-ignore after prisma generate
+    const uploads = await prisma.ticketUpload.findMany({ 
+      orderBy: { uploadedAt: 'desc' }, 
+      take: 2, 
+      include: { flights: { include: { crewMember: true } } } 
+    });
+    
     // Uçuşları ve eşleşmiş crewMember verisini çek
     // @ts-ignore after prisma generate
-    const upload = await prisma.ticketUpload.findUnique({ where: { id: uploadId }, include: { flights: { include: { crewMember: true } } } });
+    const upload = uploads.find((u: any) => u.id === uploadId);
     if (!upload) return NextResponse.json({ error: 'Upload not found' }, { status: 404 });
 
     // Eksik alanları uçuş anında doldurmamışsak burada zenginleştir.
@@ -60,7 +69,36 @@ export async function GET(request: Request) {
     });
 
     const groups = groupFlights(normalizedRows);
-    const email = await buildEmailDraft(groups);
+    
+    // Diff hesapla (eğer önceki upload varsa)
+    const prevUpload = uploads.length > 1 && uploads[0].id !== uploadId ? uploads[0] : uploads[1];
+    let diff = null;
+    if (prevUpload && prevUpload.id !== uploadId) {
+      const prevNormalizedRows = prevUpload.flights.map((f: any) => {
+        const raw = f.rawData || {};
+        return {
+          pairingRoute: f.pairingRoute,
+          flightNumber: f.flightNumber,
+          airline: f.airline,
+          depDateTime: f.depDateTime ? new Date(f.depDateTime) : null,
+          arrDateTime: f.arrDateTime ? new Date(f.arrDateTime) : null,
+          depPort: f.depPort,
+          arrPort: f.arrPort,
+          crewName: f.crewName,
+          rank: f.rank || '',
+          nationality: f.nationality,
+          passportNumber: f.passportNumber,
+          dateOfBirth: f.dateOfBirth ? new Date(f.dateOfBirth) : null,
+          gender: f.gender,
+          status: f.status,
+          raw,
+        };
+      });
+      const prevGroups = groupFlights(prevNormalizedRows);
+      diff = diffFlights(prevGroups, groups);
+    }
+    
+    const email = await buildEmailDraftWithDiff(groups, diff);
     if (debug === '1') {
       const matchStats = {
         total: upload.flights.length,

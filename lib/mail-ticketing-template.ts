@@ -2,6 +2,7 @@
 // Her flightGroup için başlık ve tablo oluşturur.
 import { NormalizedTicketRow } from './ticketing-parse';
 import { findAirportDynamic, getUtcOffsetHours } from './airports-dynamic';
+import { FlightDiffResult } from './ticketing-diff';
 
 // GMT+0 tarihini port için local time'a çevir
 async function toLocalTime(gmtDate: Date | null | undefined, portCode: string | undefined): Promise<Date | null> {
@@ -151,6 +152,99 @@ export async function buildEmailDraft(groups: { key: string; rows: NormalizedTic
     const header = await buildFlightHeader(g.rows);
     html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${header}</p>\n`;
     html += buildFlightTable(g.rows);
+  }
+  
+  html += '</div>';
+  return html;
+}
+
+// Diff ile email draft oluştur (NEW, CHANGED, CANCELLED)
+export async function buildEmailDraftWithDiff(
+  groups: { key: string; rows: NormalizedTicketRow[] }[], 
+  diff: FlightDiffResult | null
+): Promise<string> {
+  let html = '<div style="font-family: Arial, sans-serif; color: black;">\n';
+  html += '<p style="margin-bottom: 5px;">Dear Colleagues,</p>\n';
+  html += '<p style="margin-top: 5px; margin-bottom: 15px;">We need ticket belowing flights;</p>\n';
+  
+  // Eğer diff yoksa (ilk upload), normal email oluştur
+  if (!diff) {
+    for (const g of groups) {
+      const header = await buildFlightHeader(g.rows);
+      html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+      html += buildFlightTable(g.rows);
+    }
+    html += '</div>';
+    return html;
+  }
+  
+  // NEW FLIGHTS (Yeşil)
+  if (diff.newFlights.length > 0) {
+    html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
+    html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #10b981; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
+    html += `NEW FLIGHTS (${diff.newFlights.length})`;
+    html += '</h3>\n</div>\n';
+    
+    for (const key of diff.newFlights) {
+      const detail = diff.details[key];
+      if (detail?.curr) {
+        const header = await buildFlightHeader(detail.curr);
+        html += `<div style="border-left: 4px solid #10b981; padding-left: 12px; margin-bottom: 20px;">\n`;
+        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+        html += buildFlightTable(detail.curr);
+        html += '</div>\n';
+      }
+    }
+  }
+  
+  // CHANGED FLIGHTS (Turuncu)
+  if (diff.changedFlights.length > 0) {
+    html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
+    html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #f59e0b; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
+    html += `CHANGED FLIGHTS (${diff.changedFlights.length})`;
+    html += '</h3>\n</div>\n';
+    
+    for (const key of diff.changedFlights) {
+      const detail = diff.details[key];
+      if (detail?.prev && detail?.curr) {
+        const prevHeader = await buildFlightHeader(detail.prev);
+        const currHeader = await buildFlightHeader(detail.curr);
+        
+        html += `<div style="border-left: 4px solid #f59e0b; padding-left: 12px; margin-bottom: 20px;">\n`;
+        html += `<p style="margin-top: 10px; margin-bottom: 5px; color: #7c2d12; font-size: 12px;"><strong>BEFORE:</strong> ${prevHeader}</p>\n`;
+        html += `<p style="margin-top: 5px; margin-bottom: 5px; color: #065f46; font-size: 12px;"><strong>AFTER:</strong> ${currHeader}</p>\n`;
+        
+        if (detail.changes && detail.changes.length > 0) {
+          html += '<ul style="margin: 8px 0; padding-left: 20px; font-size: 11px; color: #92400e;">\n';
+          detail.changes.forEach(change => {
+            html += `<li>${change}</li>\n`;
+          });
+          html += '</ul>\n';
+        }
+        
+        html += buildFlightTable(detail.curr);
+        html += '</div>\n';
+      }
+    }
+  }
+  
+  // CANCELLED FLIGHTS (Kırmızı)
+  if (diff.cancelledFlights.length > 0) {
+    html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
+    html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #ef4444; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
+    html += `CANCELLED FLIGHTS (${diff.cancelledFlights.length})`;
+    html += '</h3>\n</div>\n';
+    
+    for (const key of diff.cancelledFlights) {
+      const detail = diff.details[key];
+      if (detail?.prev) {
+        const header = await buildFlightHeader(detail.prev);
+        html += `<div style="border-left: 4px solid #ef4444; padding-left: 12px; margin-bottom: 20px; opacity: 0.7;">\n`;
+        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #7f1d1d; text-decoration: line-through;">${header}</p>\n`;
+        html += buildFlightTable(detail.prev);
+        html += '</div>\n';
+      }
+    }
   }
   
   html += '</div>';
