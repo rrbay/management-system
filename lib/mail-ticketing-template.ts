@@ -60,19 +60,31 @@ export function buildFlightTable(rows: NormalizedTicketRow[]): string {
     const name = safe(r.crewName);
     const passport = safe(r.passportNumber);
 
-    // Passport expiry from rawData (crew list)
+    // Passport expiry from rawData (crew list) - normalize all date formats to DD.MM.YYYY
     let expVal = '';
     if (r.raw._crewPassportExpiry) {
       try {
-        const expDate = new Date(r.raw._crewPassportExpiry);
+        let expDate: Date;
+        const rawExp = String(r.raw._crewPassportExpiry);
+        
+        // If already DD/MM/YYYY or DD.MM.YYYY format, parse manually
+        if (/^\d{2}[\/\.]\d{2}[\/\.]\d{4}$/.test(rawExp)) {
+          const parts = rawExp.split(/[\/\.]/);
+          expDate = new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
+        } else {
+          expDate = new Date(rawExp);
+        }
+        
         // Geçersiz tarih kontrolü
         if (!isNaN(expDate.getTime())) {
           expVal = formatDateLocal(expDate).split(' ')[0];
         } else {
-          expVal = r.raw._crewPassportExpiry;
+          // Eğer tarih parse edilemiyorsa orijinal değeri nokta formatına çevir
+          expVal = rawExp.replace(/\//g, '.');
         }
       } catch {
-        expVal = r.raw._crewPassportExpiry;
+        // Parse hatası varsa orijinal değeri nokta formatına çevir
+        expVal = String(r.raw._crewPassportExpiry).replace(/\//g, '.');
       }
     }
     const exp = safe(expVal);
