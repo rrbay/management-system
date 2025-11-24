@@ -14,7 +14,7 @@ export async function POST(request: Request) {
 
     const filename = (file as any).name || 'ticketing.xlsx';
     const buffer = Buffer.from(await file.arrayBuffer());
-    const { headers, rows } = await parseTicketWorkbook(buffer);
+    const { headers, rows } = parseTicketWorkbook(buffer);
 
     // TicketUpload oluştur (tablo yoksa otomatik oluştur)
     // @ts-ignore prisma client will include ticketUpload after generate

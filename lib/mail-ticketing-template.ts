@@ -1,6 +1,24 @@
 // E-posta taslak metni üretir
 // Her flightGroup için başlık ve tablo oluşturur.
 import { NormalizedTicketRow } from './ticketing-parse';
+import { findAirportDynamic, getUtcOffsetHours } from './airports-dynamic';
+
+// GMT+0 tarihini port için local time'a çevir
+async function toLocalTime(gmtDate: Date | null | undefined, portCode: string | undefined): Promise<Date | null> {
+  if (!gmtDate || !portCode) return gmtDate || null;
+  
+  try {
+    const airport = await findAirportDynamic(portCode);
+    if (!airport || !airport.tz) return gmtDate;
+    
+    const offsetHours = getUtcOffsetHours(airport.tz, gmtDate);
+    const localDate = new Date(gmtDate);
+    localDate.setHours(localDate.getHours() + offsetHours);
+    return localDate;
+  } catch {
+    return gmtDate;
+  }
+}
 
 function formatDateLocal(d?: Date | null) {
   if (!d) return '';
@@ -18,15 +36,19 @@ export interface FlightEmailBlock {
   table: string; // Plain text table
 }
 
-export function buildFlightHeader(rows: NormalizedTicketRow[]): string {
+export async function buildFlightHeader(rows: NormalizedTicketRow[]): Promise<string> {
   if (!rows.length) return '';
   const r = rows[0];
   
+  // GMT+0 tarihlerini local time'a çevir
+  const depLocal = await toLocalTime(r.depDateTime, r.depPort);
+  const arrLocal = await toLocalTime(r.arrDateTime, r.arrPort);
+  
   // Format: DD.MM.YYYY - AIRLINE FLTNO DEPPORT-ARRPORT HH:MM L / DD.MM.YYYY HH:MM L
-  const depDate = r.depDateTime ? formatDateLocal(r.depDateTime).split(' ')[0] : '';
-  const depTime = r.depDateTime ? formatDateLocal(r.depDateTime).split(' ')[1] : '';
-  const arrDate = r.arrDateTime ? formatDateLocal(r.arrDateTime).split(' ')[0] : '';
-  const arrTime = r.arrDateTime ? formatDateLocal(r.arrDateTime).split(' ')[1] : '';
+  const depDate = depLocal ? formatDateLocal(depLocal).split(' ')[0] : '';
+  const depTime = depLocal ? formatDateLocal(depLocal).split(' ')[1] : '';
+  const arrDate = arrLocal ? formatDateLocal(arrLocal).split(' ')[0] : '';
+  const arrTime = arrLocal ? formatDateLocal(arrLocal).split(' ')[1] : '';
   
   const airlineFlight = `${r.airline || ''} ${r.flightNumber || ''}`.trim();
   const route = `${r.depPort || ''}-${r.arrPort || ''}`;
@@ -109,13 +131,14 @@ export function buildFlightTable(rows: NormalizedTicketRow[]): string {
   return html;
 }
 
-export function buildEmailDraft(groups: { key: string; rows: NormalizedTicketRow[] }[]): string {
+export async function buildEmailDraft(groups: { key: string; rows: NormalizedTicketRow[] }[]): Promise<string> {
   let html = '<div style="font-family: Arial, sans-serif; color: black;">\n';
   html += '<p style="margin-bottom: 5px;">Dear Colleagues,</p>\n';
   html += '<p style="margin-top: 5px; margin-bottom: 15px;">We need ticket belowing flights;</p>\n';
   
   for (const g of groups) {
-    html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${buildFlightHeader(g.rows)}</p>\n`;
+    const header = await buildFlightHeader(g.rows);
+    html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${header}</p>\n`;
     html += buildFlightTable(g.rows);
   }
   

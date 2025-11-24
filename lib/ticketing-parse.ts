@@ -93,7 +93,7 @@ function normalizeName(name: string | undefined): string | undefined {
   return name.replace(/\s+/g,' ').trim();
 }
 
-export async function parseTicketWorkbook(buffer: Buffer) {
+export function parseTicketWorkbook(buffer: Buffer) {
   // cellDates: false kullanarak ham string/serial değerleri alıyoruz, 
   // böylece GMT+0 olarak parse edip local'e çevirebiliriz
   const wb = xlsx.read(buffer, { type: 'buffer', cellDates: false });
@@ -116,7 +116,7 @@ export async function parseTicketWorkbook(buffer: Buffer) {
     return obj;
   }).filter(row => Object.values(row).some(v => v !== null && v !== ''));
 
-  const mapped: NormalizedTicketRow[] = await Promise.all(rows.map(async r => {
+  const mapped: NormalizedTicketRow[] = rows.map(r => {
     const obj: RawTicketRow = r;
     const get = (variants: string[]): any => {
       for (const v of variants) {
@@ -150,8 +150,8 @@ export async function parseTicketWorkbook(buffer: Buffer) {
       pairingRoute: pairingRoute ? String(pairingRoute).trim() : undefined,
       flightNumber: flightNumber ? String(flightNumber).trim() : undefined,
       airline: airline ? String(airline).trim() : undefined,
-      depDateTime: await convertToLocalTime(depDateTimeGMT, depPortStr),
-      arrDateTime: await convertToLocalTime(arrDateTimeGMT, arrPortStr),
+      depDateTime: depDateTimeGMT, // GMT+0 olarak sakla
+      arrDateTime: arrDateTimeGMT, // GMT+0 olarak sakla
       depPort: depPortStr,
       arrPort: arrPortStr,
       crewName,
@@ -163,7 +163,7 @@ export async function parseTicketWorkbook(buffer: Buffer) {
       status: status ? String(status).trim() : undefined,
       raw: obj,
     };
-  }));
+  });
   
   // RESERVED CREW LIST boş olan satırları filtrele (crew name zorunlu)
   const filtered = mapped.filter(r => r.crewName && r.crewName.trim() !== '');

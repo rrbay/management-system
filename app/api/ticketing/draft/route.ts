@@ -60,7 +60,7 @@ export async function GET(request: Request) {
     });
 
     const groups = groupFlights(normalizedRows);
-    const email = buildEmailDraft(groups);
+    const email = await buildEmailDraft(groups);
     if (debug === '1') {
       const matchStats = {
         total: upload.flights.length,
