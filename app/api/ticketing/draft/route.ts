@@ -71,10 +71,10 @@ export async function GET(request: Request) {
 
     const groups = groupFlights(normalizedRows);
     
-    // Diff hesapla (eğer önceki upload varsa ve showAll=false ise)
+    // Diff hesapla (showAll=true ise her zaman hesapla, false ise sadece önceki varsa)
     const prevUpload = uploads.length > 1 && uploads[0].id !== uploadId ? uploads[0] : uploads[1];
     let diff = null;
-    if (!showAll && prevUpload && prevUpload.id !== uploadId) {
+    if (prevUpload && prevUpload.id !== uploadId) {
       const prevNormalizedRows = prevUpload.flights.map((f: any) => {
         const raw = f.rawData || {};
         return {
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
       diff = diffFlights(prevGroups, groups);
     }
     
-    const email = await buildEmailDraftWithDiff(groups, diff);
+    const email = await buildEmailDraftWithDiff(groups, diff, showAll);
     if (debug === '1') {
       const matchStats = {
         total: upload.flights.length,
