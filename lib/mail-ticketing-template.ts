@@ -5,8 +5,8 @@ import { NormalizedTicketRow } from './ticketing-parse';
 function formatDateLocal(d?: Date | null) {
   if (!d) return '';
   // Kullanıcıya lokal format (gün.ay.yıl) + HH:MM
-  const dd = d.getDate();
-  const mm = d.getMonth() + 1;
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
   const yyyy = d.getFullYear();
   const hh = String(d.getHours()).padStart(2,'0');
   const mi = String(d.getMinutes()).padStart(2,'0');
