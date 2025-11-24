@@ -91,6 +91,19 @@ export async function loadAirportsDynamic(): Promise<DynamicAirport[]> {
 export async function findAirportDynamic(code: string): Promise<DynamicAirport | null> {
   const list = await loadAirportsDynamic();
   const upper = code.toUpperCase();
+  
+  // Manuel fallback: IST (Istanbul Atatürk Airport - kapatıldı ama hala kullanılıyor)
+  if (upper === 'IST') {
+    return {
+      iata: 'IST',
+      icao: 'LTBA',
+      name: 'Istanbul Ataturk Airport',
+      city: 'Istanbul',
+      country: 'Turkey',
+      tz: 'Europe/Istanbul',
+    };
+  }
+  
   return (
     list.find(a => a.iata.toUpperCase() === upper) ||
     list.find(a => a.icao.toUpperCase() === upper) ||
@@ -99,11 +112,37 @@ export async function findAirportDynamic(code: string): Promise<DynamicAirport |
 }
 
 export function getUtcOffsetHours(timezone: string, date: Date = new Date()): number {
-  // Daha doğru offset hesabı: belirtilen timezone'da "sanal" tarih üretip UTC farkını hesaplıyoruz.
-  const localStr = date.toLocaleString('en-US', { timeZone: timezone });
-  const localDate = new Date(localStr);
-  const offsetMinutes = (localDate.getTime() - date.getTime()) / 60000;
-  return offsetMinutes / 60;
+  // IANA timezone ile UTC offset hesaplama
+  // Belirtilen tarihte timezone'un UTC'den farkını buluyoruz
+  try {
+    // Aynı anı hem UTC hem de verilen timezone'da format edip farkı hesaplıyoruz
+    const utcTime = date.getTime();
+    
+    // Timezone'daki lokal zamanı al (format: "MM/DD/YYYY, HH:MM:SS")
+    const localStr = date.toLocaleString('en-US', {
+      timeZone: timezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    });
+    
+    // Parse edilen lokal string'i UTC Date object'e çevir
+    const [datePart, timePart] = localStr.split(', ');
+    const [month, day, year] = datePart.split('/').map(Number);
+    const [hour, minute, second] = timePart.split(':').map(Number);
+    const localAsUtc = Date.UTC(year, month - 1, day, hour, minute, second);
+    
+    // Farkı saat cinsinden hesapla
+    const offsetMs = localAsUtc - utcTime;
+    return Math.round(offsetMs / 3600000); // Millisecond -> Saat
+  } catch (err) {
+    console.warn(`[getUtcOffsetHours] Failed for timezone ${timezone}:`, err);
+    return 0;
+  }
 }
 
 export async function airportInfoWithOffsetDynamic(code: string, date?: Date) {
