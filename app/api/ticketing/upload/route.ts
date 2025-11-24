@@ -101,13 +101,31 @@ export async function POST(request: Request) {
     const crewMembers = await prisma.crewMember.findMany({});
     const crewIndex: Record<string, any> = {};
     crewMembers.forEach((c: any) => {
+      // 1. fullName varsa (bazen sadece soyisim olabilir)
       if (c.fullName) {
         const normalized = normalizeName(c.fullName);
         crewIndex[normalized] = c;
       }
+      
+      // 2. firstName + lastName kombinasyonu
       const combo = `${(c.firstName||'').trim()} ${(c.lastName||'').trim()}`.trim();
-      if (combo) {
+      if (combo && combo !== c.lastName) { // Sadece soyisim değilse
         const normalized = normalizeName(combo);
+        crewIndex[normalized] = c;
+      }
+      
+      // 3. rawData.Name + lastName (gerçek ad genelde rawData.Name'de)
+      const rawName = c.rawData?.['Name'] || c.rawData?.['NAME'];
+      const rawSurname = c.rawData?.['Surname'] || c.rawData?.['SURNAME'] || c.lastName;
+      if (rawName && rawSurname) {
+        const fullCombo = `${rawName.trim()} ${rawSurname.trim()}`;
+        const normalized = normalizeName(fullCombo);
+        crewIndex[normalized] = c;
+      }
+      
+      // 4. Sadece lastName (soyisim bazlı eşleşme)
+      if (c.lastName) {
+        const normalized = normalizeName(c.lastName);
         crewIndex[normalized] = c;
       }
     });
