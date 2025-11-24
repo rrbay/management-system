@@ -34,48 +34,64 @@ export function buildFlightHeader(rows: NormalizedTicketRow[]): string {
 
 // Tablo: HTML tablo formatında
 export function buildFlightTable(rows: NormalizedTicketRow[]): string {
-  const headerCols = ['Rank Type','Total Number of Crew','Passport','Exp.','Date of Birth','Nat.','Citizenship No','Gen','Phone Number'];
-  
-  let html = '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px; margin-top: 10px; margin-bottom: 10px;">\n';
-  
+  // Kolon başlıkları veri sırasıyla uyumlu olacak şekilde güncellendi.
+  const headerCols = ['Rank Type','Crew Name','Passport No','Exp.','Date of Birth','Nat.','Citizenship No','Gen','Phone'];
+
+  const crewCount = rows.length;
+  let html = '<div style="margin-top:6px;margin-bottom:4px;font-size:11px;color:#2d3748;">Total Number of Crew: '+crewCount+'</div>';
+  html += '<table border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; font-size: 12px; margin-top: 4px; margin-bottom: 10px;">\n';
+
   // Header row
   html += '  <thead>\n    <tr style="background-color: #4a5568; color: white; font-weight: bold;">\n';
   headerCols.forEach(col => {
-    html += `      <th style="border: 1px solid #ccc; padding: 8px; text-align: left;">${col}</th>\n`;
+    html += `      <th style="border: 1px solid #ccc; padding: 6px 8px; text-align: left;">${col}</th>\n`;
   });
   html += '    </tr>\n  </thead>\n';
-  
+
   // Data rows
   html += '  <tbody>\n';
   for (const r of rows) {
-    const rank = r.rank || '';
-    const name = r.crewName || '';
-    const passport = r.passportNumber || '';
-    
+    const safe = (v: any) => {
+      if (v === null || v === undefined || v === '') return '-';
+      return String(v);
+    };
+
+    const rank = safe(r.rank);
+    const name = safe(r.crewName);
+    const passport = safe(r.passportNumber);
+
     // Passport expiry from rawData (crew list)
-    let exp = '';
+    let expVal = '';
     if (r.raw._crewPassportExpiry) {
       try {
         const expDate = new Date(r.raw._crewPassportExpiry);
-        exp = formatDateLocal(expDate).split(' ')[0];
-      } catch {}
+        // Geçersiz tarih kontrolü
+        if (!isNaN(expDate.getTime())) {
+          expVal = formatDateLocal(expDate).split(' ')[0];
+        } else {
+          expVal = r.raw._crewPassportExpiry;
+        }
+      } catch {
+        expVal = r.raw._crewPassportExpiry;
+      }
     }
-    
-    const dob = r.dateOfBirth ? formatDateLocal(r.dateOfBirth).split(' ')[0] : '';
-    const nat = r.nationality || '';
-    const citizen = r.raw._crewCitizenshipNo || '';
-    const gender = r.gender || '';
-    const phone = r.raw._crewPhone || '';
-    
+    const exp = safe(expVal);
+
+    const dob = safe(r.dateOfBirth ? formatDateLocal(r.dateOfBirth).split(' ')[0] : '');
+    const nat = safe(r.nationality);
+    const citizen = safe(r.raw._crewCitizenshipNo);
+    const gender = safe(r.gender);
+    const phone = safe(r.raw._crewPhone);
+
     html += '    <tr>\n';
     [rank,name,passport,exp,dob,nat,citizen,gender,phone].forEach(val => {
-      html += `      <td style="border: 1px solid #ccc; padding: 8px; background-color: white; color: black;">${val}</td>\n`;
+      html += `      <td style="border: 1px solid #ccc; padding: 6px 8px; background-color: white; color: #1a202c;">${val}</td>\n`;
     });
     html += '    </tr>\n';
   }
   html += '  </tbody>\n';
   html += '</table>';
-  
+
   return html;
 }
 

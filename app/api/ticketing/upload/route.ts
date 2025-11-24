@@ -83,19 +83,50 @@ export async function POST(request: Request) {
       }
     }
 
+    // İsim normalizasyon fonksiyonu (trim, çoklu boşluk, Türkçe karakterler)
+    function normalizeName(name: string): string {
+      return name
+        .trim()
+        .replace(/\s+/g, ' ') // Çoklu boşlukları tek boşluğa
+        .toLowerCase()
+        .replace(/ı/g, 'i')
+        .replace(/ğ/g, 'g')
+        .replace(/ü/g, 'u')
+        .replace(/ş/g, 's')
+        .replace(/ö/g, 'o')
+        .replace(/ç/g, 'c');
+    }
+
     // Crew eşleme için tüm crewMembers çek (isim eşleme)
     const crewMembers = await prisma.crewMember.findMany({});
     const crewIndex: Record<string, any> = {};
     crewMembers.forEach((c: any) => {
-      if (c.fullName) crewIndex[c.fullName.toLowerCase()] = c;
+      if (c.fullName) {
+        const normalized = normalizeName(c.fullName);
+        crewIndex[normalized] = c;
+      }
       const combo = `${(c.firstName||'').trim()} ${(c.lastName||'').trim()}`.trim();
-      if (combo) crewIndex[combo.toLowerCase()] = c;
+      if (combo) {
+        const normalized = normalizeName(combo);
+        crewIndex[normalized] = c;
+      }
     });
 
+    console.log(`[Upload] Total crew members indexed: ${Object.keys(crewIndex).length}`);
+    console.log(`[Upload] Sample indexed names:`, Object.keys(crewIndex).slice(0, 5));
+
     // Satırları DB'ye yaz
+    let matchedCount = 0;
+    let unmatchedNames: string[] = [];
     for (const r of rows) {
-      const nameKey = (r.crewName || '').toLowerCase();
+      const nameKey = normalizeName(r.crewName || '');
       const crew = crewIndex[nameKey];
+      
+      if (crew) {
+        matchedCount++;
+      } else if (r.crewName) {
+        unmatchedNames.push(r.crewName);
+      }
       
       // Crew data'dan güvenli bir şekilde veri al
       let dobFromCrew: Date | undefined = undefined;
@@ -138,6 +169,11 @@ export async function POST(request: Request) {
           rawData: enrichedRaw,
         },
       });
+    }
+
+    console.log(`[Upload] Crew matching: ${matchedCount}/${rows.length} matched`);
+    if (unmatchedNames.length > 0) {
+      console.log(`[Upload] Unmatched names (first 10):`, unmatchedNames.slice(0, 10));
     }
 
     // Eski yüklemeleri temizle (yalnızca son iki)
