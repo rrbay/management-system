@@ -2,6 +2,30 @@
 // Türkçe açıklamalar iş mantığını açıklar.
 import * as xlsx from 'xlsx';
 
+// Havalimanı timezone offset'leri (GMT+0'dan fark, saat cinsinden)
+const AIRPORT_TIMEZONES: Record<string, number> = {
+  'IST': 3,  // Istanbul GMT+3
+  'AYT': 3,  // Antalya GMT+3
+  'ESB': 3,  // Ankara GMT+3
+  'ADB': 3,  // Izmir GMT+3
+  'SAW': 3,  // Sabiha Gokcen GMT+3
+  'DLM': 3,  // Dalaman GMT+3
+  'BJV': 3,  // Bodrum GMT+3
+  'GZT': 3,  // Gaziantep GMT+3
+  'TZX': 3,  // Trabzon GMT+3
+  // Gerekirse başka havalimanları eklenebilir
+};
+
+// GMT+0 tarihini verilen port için local time'a çevir
+function convertToLocalTime(gmtDate: Date | null, portCode: string | undefined): Date | null {
+  if (!gmtDate || !portCode) return gmtDate;
+  const offset = AIRPORT_TIMEZONES[portCode.toUpperCase()];
+  if (offset === undefined) return gmtDate; // Bilinmeyen port, GMT+0 kalsın
+  const localDate = new Date(gmtDate);
+  localDate.setHours(localDate.getHours() + offset);
+  return localDate;
+}
+
 export interface RawTicketRow {
   [key: string]: any;
 }
@@ -103,14 +127,19 @@ export function parseTicketWorkbook(buffer: Buffer) {
     const gender = get(['GENDER','GEN']);
     const status = get(['STATUS']);
 
+    const depPortStr = depPort ? String(depPort).trim() : undefined;
+    const arrPortStr = arrPort ? String(arrPort).trim() : undefined;
+    const depDateTimeGMT = parseDateTime(depDateRaw);
+    const arrDateTimeGMT = parseDateTime(arrDateRaw);
+    
     return {
       pairingRoute: pairingRoute ? String(pairingRoute).trim() : undefined,
       flightNumber: flightNumber ? String(flightNumber).trim() : undefined,
       airline: airline ? String(airline).trim() : undefined,
-      depDateTime: parseDateTime(depDateRaw),
-      arrDateTime: parseDateTime(arrDateRaw),
-      depPort: depPort ? String(depPort).trim() : undefined,
-      arrPort: arrPort ? String(arrPort).trim() : undefined,
+      depDateTime: convertToLocalTime(depDateTimeGMT, depPortStr),
+      arrDateTime: convertToLocalTime(arrDateTimeGMT, arrPortStr),
+      depPort: depPortStr,
+      arrPort: arrPortStr,
       crewName,
       rank: rank ? String(rank).trim() : undefined,
       nationality: nationality ? String(nationality).trim() : undefined,

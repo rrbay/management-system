@@ -21,14 +21,16 @@ export interface FlightEmailBlock {
 export function buildFlightHeader(rows: NormalizedTicketRow[]): string {
   if (!rows.length) return '';
   const r = rows[0];
+  
+  // Format: DD.MM.YYYY - AIRLINE FLTNO DEPPORT-ARRPORT HH:MM L / DD.MM.YYYY HH:MM L
   const depDate = r.depDateTime ? formatDateLocal(r.depDateTime).split(' ')[0] : '';
   const depTime = r.depDateTime ? formatDateLocal(r.depDateTime).split(' ')[1] : '';
   const arrDate = r.arrDateTime ? formatDateLocal(r.arrDateTime).split(' ')[0] : '';
   const arrTime = r.arrDateTime ? formatDateLocal(r.arrDateTime).split(' ')[1] : '';
+  
   const airlineFlight = `${r.airline || ''} ${r.flightNumber || ''}`.trim();
-  // Pairing route içinden ilk segmenti basitçe göster (AYT-IST vs tam rota)
-  let route = r.pairingRoute || '';
-  if (route.includes('/')) route = route.split('/')[0];
+  const route = `${r.depPort || ''}-${r.arrPort || ''}`;
+  
   return `${depDate} - ${airlineFlight} ${route} ${depTime} L / ${arrDate} ${arrTime} L`;
 }
 
