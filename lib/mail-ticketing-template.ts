@@ -5,17 +5,28 @@ import { findAirportDynamic, getUtcOffsetHours } from './airports-dynamic';
 
 // GMT+0 tarihini port için local time'a çevir
 async function toLocalTime(gmtDate: Date | null | undefined, portCode: string | undefined): Promise<Date | null> {
-  if (!gmtDate || !portCode) return gmtDate || null;
+  if (!gmtDate || !portCode) {
+    console.log(`[toLocalTime] Skipping - gmtDate: ${gmtDate}, portCode: ${portCode}`);
+    return gmtDate || null;
+  }
+  
+  console.log(`[toLocalTime] Converting ${portCode}: ${gmtDate.toISOString()}`);
   
   try {
     const airport = await findAirportDynamic(portCode);
-    if (!airport || !airport.tz) return gmtDate;
+    if (!airport || !airport.tz) {
+      console.log(`[toLocalTime] Airport not found or no timezone for ${portCode}`);
+      return gmtDate;
+    }
     
     const offsetHours = getUtcOffsetHours(airport.tz, gmtDate);
     const localDate = new Date(gmtDate);
     localDate.setHours(localDate.getHours() + offsetHours);
+    
+    console.log(`[toLocalTime] ${portCode}: GMT ${gmtDate.toISOString()} -> Local ${localDate.toISOString()} (offset: ${offsetHours}h, tz: ${airport.tz})`);
     return localDate;
-  } catch {
+  } catch (err) {
+    console.warn(`[toLocalTime] Error for ${portCode}:`, err);
     return gmtDate;
   }
 }
