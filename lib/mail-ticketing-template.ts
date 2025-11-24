@@ -167,12 +167,19 @@ export async function buildEmailDraftWithDiff(
   html += '<p style="margin-bottom: 5px;">Dear Colleagues,</p>\n';
   html += '<p style="margin-top: 5px; margin-bottom: 15px;">We need ticket belowing flights;</p>\n';
   
-  // Eğer diff yoksa (ilk upload), normal email oluştur
+  // Eğer diff yoksa (ilk upload veya showAll=true), tüm flights'ları CURRENT RESERVATIONS olarak göster
   if (!diff) {
+    html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
+    html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #3b82f6; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
+    html += `CURRENT RESERVATIONS (${groups.length})`;
+    html += '</h3>\n</div>\n';
+    
     for (const g of groups) {
       const header = await buildFlightHeader(g.rows);
-      html += `<p style="font-weight: bold; margin-top: 20px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+      html += `<div style="border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px;">\n`;
+      html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: black;">${header}</p>\n`;
       html += buildFlightTable(g.rows);
+      html += '</div>\n';
     }
     html += '</div>';
     return html;

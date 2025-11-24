@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const uploadId = searchParams.get('uploadId');
     const debug = searchParams.get('debug');
+    const showAll = searchParams.get('showAll') === '1';
     if (!uploadId) return NextResponse.json({ error: 'uploadId required' }, { status: 400 });
 
     // Son 2 upload'u çek (diff için)
@@ -70,10 +71,10 @@ export async function GET(request: Request) {
 
     const groups = groupFlights(normalizedRows);
     
-    // Diff hesapla (eğer önceki upload varsa)
+    // Diff hesapla (eğer önceki upload varsa ve showAll=false ise)
     const prevUpload = uploads.length > 1 && uploads[0].id !== uploadId ? uploads[0] : uploads[1];
     let diff = null;
-    if (prevUpload && prevUpload.id !== uploadId) {
+    if (!showAll && prevUpload && prevUpload.id !== uploadId) {
       const prevNormalizedRows = prevUpload.flights.map((f: any) => {
         const raw = f.rawData || {};
         return {

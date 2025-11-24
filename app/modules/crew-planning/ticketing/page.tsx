@@ -9,6 +9,7 @@ export default function TicketingPage() {
   const [emailDraft, setEmailDraft] = useState<string>('');
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [error, setError] = useState<string>('');
+  const [showAll, setShowAll] = useState(false);
 
   async function refreshDiff() {
     try {
@@ -57,7 +58,8 @@ export default function TicketingPage() {
     if (!lastUploadId) return;
     setLoadingDraft(true);
     try {
-      const res = await fetch(`/api/ticketing/draft?uploadId=${lastUploadId}`);
+      const url = `/api/ticketing/draft?uploadId=${lastUploadId}${showAll ? '&showAll=1' : ''}`;
+      const res = await fetch(url);
       const json = await res.json();
       if (json.email) setEmailDraft(json.email);
     } catch (e) { console.error(e); }
@@ -116,9 +118,20 @@ export default function TicketingPage() {
 
       <section className="mb-10 bg-white dark:bg-gray-800 p-6 rounded-lg shadow border border-gray-200 dark:border-gray-700">
         <h2 className="text-xl font-semibold mb-4">E-posta Taslağı</h2>
-        <button onClick={buildEmail} disabled={!lastUploadId || loadingDraft} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
-          {loadingDraft ? 'Hazırlanıyor...' : 'Taslak Oluştur'}
-        </button>
+        <div className="flex items-center gap-4 mb-4">
+          <button onClick={buildEmail} disabled={!lastUploadId || loadingDraft} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+            {loadingDraft ? 'Hazırlanıyor...' : 'Taslak Oluştur'}
+          </button>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={showAll} 
+              onChange={(e) => setShowAll(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="text-gray-700 dark:text-gray-300">Tüm Rezervasyonları Göster</span>
+          </label>
+        </div>
         {emailDraft && (
           <div className="mt-4">
             <div 
