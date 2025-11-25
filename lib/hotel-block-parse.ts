@@ -15,6 +15,9 @@ export interface HotelBlockRow {
 
 // Tarih parse (GMT+0)
 function parseDate(val: any): Date | null {
+  // Log için orijinal değeri sakla
+  const originalVal = val;
+  
   if (!val) return null;
   if (val instanceof Date) {
     // Zaten Date objesi, UTC'ye çevir
@@ -44,7 +47,7 @@ function parseDate(val: any): Date | null {
   if (!str || str === 'null' || str === 'undefined') return null;
   
   // DD.MM.YYYY HH:MM:SS ÖÖ/ÖS formatı (saat bilgisini görmezden gel)
-  // Örnek: "2.12.2025 11:15:00 ÖÖ"
+  // Örnek: "2.12.2025 11:15:00 ÖÖ" veya "2.12.2025  11 15 00 ÖÖ"
   const dateTimeMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\s+/);
   if (dateTimeMatch) {
     const [, d, m, y] = dateTimeMatch;
@@ -92,7 +95,7 @@ function parseDate(val: any): Date | null {
     }
   } catch {}
   
-  console.warn('[HotelBlockParse] Could not parse date:', val);
+  console.warn('[HotelBlockParse] Could not parse date. Original value:', originalVal, '| String:', str, '| Type:', typeof originalVal);
   return null;
 }
 
@@ -172,6 +175,7 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
   // Parse rows
   const rows: HotelBlockRow[] = [];
   let dateParseWarnings = 0;
+  const failedDateExamples: Array<{field: string, value: any, type: string}> = [];
   
   for (const rawRow of jsonData) {
     const raw = rawRow as Record<string, any>;
@@ -200,7 +204,13 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
           const parsedDate = parseDate(val);
           if (val && !parsedDate) {
             dateParseWarnings++;
-            console.warn(`[HotelBlockParse] Failed to parse ${fieldName}:`, val, 'Type:', typeof val);
+            if (failedDateExamples.length < 5) {
+              failedDateExamples.push({
+                field: fieldName,
+                value: val,
+                type: typeof val
+              });
+            }
           }
           row[fieldName] = parsedDate;
           break;
@@ -219,7 +229,8 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
   }
   
   if (dateParseWarnings > 0) {
-    console.warn(`[HotelBlockParse] ${dateParseWarnings} date parsing warnings`);
+    console.warn(`[HotelBlockParse] ⚠️  ${dateParseWarnings} date parsing failures`);
+    console.warn('[HotelBlockParse] Failed date examples:', failedDateExamples);
   }
   console.log(`[HotelBlockParse] Parsed ${rows.length} rows`);
   return { headers, rows };
