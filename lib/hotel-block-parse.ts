@@ -16,7 +16,15 @@ export interface HotelBlockRow {
 // Tarih parse (GMT+0)
 function parseDate(val: any): Date | null {
   if (!val) return null;
-  if (val instanceof Date) return val;
+  if (val instanceof Date) {
+    // Zaten Date objesi, UTC'ye çevir
+    return new Date(Date.UTC(
+      val.getFullYear(),
+      val.getMonth(),
+      val.getDate(),
+      0, 0, 0, 0
+    ));
+  }
   
   // Excel serial number
   if (typeof val === 'number') {
@@ -33,16 +41,37 @@ function parseDate(val: any): Date | null {
   
   // String parse
   const str = String(val).trim();
-  if (!str) return null;
+  if (!str || str === 'null' || str === 'undefined') return null;
   
   // DD.MM.YYYY veya DD/MM/YYYY
-  const dmyMatch = str.match(/^(\d{1,2})[\.\/](\d{1,2})[\.\/](\d{4})$/);
+  const dmyMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
   if (dmyMatch) {
     const [, d, m, y] = dmyMatch;
     return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
   }
   
-  // Fallback
+  // YYYY-MM-DD (ISO format)
+  const isoMatch = str.match(/^(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})$/);
+  if (isoMatch) {
+    const [, y, m, d] = isoMatch;
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
+  }
+  
+  // MM/DD/YYYY (US format)
+  const mdyMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
+  if (mdyMatch) {
+    const [, m, d, y] = mdyMatch;
+    const month = parseInt(m);
+    const day = parseInt(d);
+    // Eğer gün 12'den büyükse DD/MM formatı olmalı
+    if (day > 12) {
+      return new Date(Date.UTC(parseInt(y), month - 1, day, 0, 0, 0, 0));
+    }
+    // Aksi halde kontrol et
+    return new Date(Date.UTC(parseInt(y), month - 1, day, 0, 0, 0, 0));
+  }
+  
+  // Fallback - native Date parse
   try {
     const date = new Date(str);
     if (!isNaN(date.getTime())) {
@@ -55,6 +84,7 @@ function parseDate(val: any): Date | null {
     }
   } catch {}
   
+  console.warn('[HotelBlockParse] Could not parse date:', val);
   return null;
 }
 
@@ -101,16 +131,17 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
   headers: string[];
   rows: HotelBlockRow[];
 } {
-  const workbook = xlsx.read(buffer, { type: 'buffer', cellDates: true });
+  const workbook = xlsx.read(buffer, { type: 'buffer', cellDates: true, dateNF: 'dd.mm.yyyy' });
   const sheetName = workbook.SheetNames[0];
   if (!sheetName) throw new Error('Excel dosyası boş');
   
   const sheet = workbook.Sheets[sheetName];
-  // defval: '' yerine null kullan, blankrows: false ile boş satırları da al
+  // cellDates ile tarihleri Date objesi olarak al
   const jsonData = xlsx.utils.sheet_to_json(sheet, { 
-    raw: false, 
+    raw: false,
     defval: '',
-    blankrows: true 
+    blankrows: true,
+    dateNF: 'dd.mm.yyyy'
   });
   
   if (!jsonData.length) throw new Error('Excel dosyasında veri yok');
@@ -132,6 +163,8 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
   
   // Parse rows
   const rows: HotelBlockRow[] = [];
+  let dateParseWarnings = 0;
+  
   for (const rawRow of jsonData) {
     const raw = rawRow as Record<string, any>;
     const row: HotelBlockRow = {
@@ -156,7 +189,12 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
           break;
         case 'checkInDate':
         case 'checkOutDate':
-          row[fieldName] = parseDate(val);
+          const parsedDate = parseDate(val);
+          if (val && !parsedDate) {
+            dateParseWarnings++;
+            console.warn(`[HotelBlockParse] Failed to parse ${fieldName}:`, val, 'Type:', typeof val);
+          }
+          row[fieldName] = parsedDate;
           break;
         case 'singleRoomCount':
           row.singleRoomCount = parseInteger(val);
@@ -172,6 +210,9 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
     }
   }
   
+  if (dateParseWarnings > 0) {
+    console.warn(`[HotelBlockParse] ${dateParseWarnings} date parsing warnings`);
+  }
   console.log(`[HotelBlockParse] Parsed ${rows.length} rows`);
   return { headers, rows };
 }
