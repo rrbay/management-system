@@ -43,6 +43,14 @@ function parseDate(val: any): Date | null {
   const str = String(val).trim();
   if (!str || str === 'null' || str === 'undefined') return null;
   
+  // DD.MM.YYYY HH:MM:SS ÖÖ/ÖS formatı (saat bilgisini görmezden gel)
+  // Örnek: "2.12.2025 11:15:00 ÖÖ"
+  const dateTimeMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\s+/);
+  if (dateTimeMatch) {
+    const [, d, m, y] = dateTimeMatch;
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
+  }
+  
   // DD.MM.YYYY veya DD/MM/YYYY
   const dmyMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
   if (dmyMatch) {

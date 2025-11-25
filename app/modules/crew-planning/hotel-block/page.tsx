@@ -17,6 +17,7 @@ export default function HotelBlockPage() {
   const [ccEmails, setCcEmails] = useState<string[]>(['']);
   const [emailSubject, setEmailSubject] = useState('Hotel Blokaj Update');
   const [preview, setPreview] = useState<any>(null);
+  const [groupByPort, setGroupByPort] = useState(false);
 
   async function refreshUploads() {
     try {
@@ -254,10 +255,19 @@ export default function HotelBlockPage() {
             {/* Önizleme Tablosu */}
             {preview && preview.rows && preview.rows.length > 0 && (
               <div className="mb-6 border rounded-lg overflow-hidden">
-                <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 border-b">
+                <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 border-b flex items-center justify-between">
                   <h3 className="text-sm font-semibold">
                     Excel Önizleme ({preview.rows.length} / {preview.totalRows} satır)
                   </h3>
+                  <label className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={groupByPort}
+                      onChange={(e) => setGroupByPort(e.target.checked)}
+                      className="rounded"
+                    />
+                    <span>Hotel Port'a göre grupla</span>
+                  </label>
                 </div>
                 <div className="overflow-x-auto max-h-96 overflow-y-auto">
                   <table className="w-full text-sm">
@@ -272,23 +282,63 @@ export default function HotelBlockPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {preview.rows.map((row: any, idx: number) => (
-                        <tr 
-                          key={idx} 
-                          className={`border-b ${
-                            row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
-                            row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
-                            ''
-                          }`}
-                        >
-                          <td className="px-3 py-2">{row.hotelPort}</td>
-                          <td className="px-3 py-2">{row.arrLeg}</td>
-                          <td className="px-3 py-2">{row.checkInDate}</td>
-                          <td className="px-3 py-2">{row.checkOutDate}</td>
-                          <td className="px-3 py-2">{row.depLeg}</td>
-                          <td className="px-3 py-2">{row.singleRoomCount}</td>
-                        </tr>
-                      ))}
+                      {(() => {
+                        if (!groupByPort) {
+                          // Normal görünüm
+                          return preview.rows.map((row: any, idx: number) => (
+                            <tr 
+                              key={idx} 
+                              className={`border-b ${
+                                row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
+                                row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
+                                ''
+                              }`}
+                            >
+                              <td className="px-3 py-2">{row.hotelPort}</td>
+                              <td className="px-3 py-2">{row.arrLeg}</td>
+                              <td className="px-3 py-2">{row.checkInDate}</td>
+                              <td className="px-3 py-2">{row.checkOutDate}</td>
+                              <td className="px-3 py-2">{row.depLeg}</td>
+                              <td className="px-3 py-2">{row.singleRoomCount}</td>
+                            </tr>
+                          ));
+                        } else {
+                          // Gruplu görünüm
+                          const grouped: Record<string, any[]> = {};
+                          preview.rows.forEach((row: any) => {
+                            const port = row.hotelPort || 'BELİRTİLMEMİŞ';
+                            if (!grouped[port]) grouped[port] = [];
+                            grouped[port].push(row);
+                          });
+                          
+                          return Object.entries(grouped).map(([port, rows]) => (
+                            <>
+                              <tr key={`header-${port}`} className="bg-blue-50 dark:bg-blue-900/20 border-b-2 border-blue-300 dark:border-blue-700">
+                                <td colSpan={6} className="px-3 py-2 font-bold text-blue-900 dark:text-blue-100">
+                                  📍 {port} ({rows.length} rezervasyon)
+                                </td>
+                              </tr>
+                              {rows.map((row: any, idx: number) => (
+                                <tr 
+                                  key={`${port}-${idx}`} 
+                                  className={`border-b ${
+                                    row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
+                                    row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
+                                    ''
+                                  }`}
+                                >
+                                  <td className="px-3 py-2 pl-8">{row.hotelPort}</td>
+                                  <td className="px-3 py-2">{row.arrLeg}</td>
+                                  <td className="px-3 py-2">{row.checkInDate}</td>
+                                  <td className="px-3 py-2">{row.checkOutDate}</td>
+                                  <td className="px-3 py-2">{row.depLeg}</td>
+                                  <td className="px-3 py-2">{row.singleRoomCount}</td>
+                                </tr>
+                              ))}
+                            </>
+                          ));
+                        }
+                      })()}
                       {preview.cancelled && preview.cancelled.length > 0 && preview.cancelled.map((row: any, idx: number) => (
                         <tr key={`c-${idx}`} className="border-b text-red-700 dark:text-red-400 font-semibold">
                           <td className="px-3 py-2">{row.hotelPort}</td>
