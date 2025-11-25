@@ -162,23 +162,35 @@ export async function buildEmailDraft(groups: { key: string; rows: NormalizedTic
 export async function buildEmailDraftWithDiff(
   groups: { key: string; rows: NormalizedTicketRow[] }[], 
   diff: FlightDiffResult | null,
-  showAll: boolean = false
+  showAll: boolean = false,
+  includePast: boolean = false
 ): Promise<string> {
   let html = '<div style="font-family: Arial, sans-serif; color: black;">\n';
   html += '<p style="margin-bottom: 5px;">Dear Colleagues,</p>\n';
   html += '<p style="margin-top: 5px; margin-bottom: 15px;">We need ticket belowing flights;</p>\n';
   
+  // Geçmiş uçuş kontrolü (GMT+0 depDateTime)
+  const isPastGroup = (rows: NormalizedTicketRow[]): boolean => {
+    if (!rows?.length) return false;
+    const dep = rows[0]?.depDateTime ? new Date(rows[0].depDateTime) : null;
+    if (!dep) return false;
+    return dep.getTime() < Date.now();
+  };
+  
   // Eğer diff yoksa (ilk upload), sadece CURRENT RESERVATIONS göster
   if (!diff) {
     html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
     html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #3b82f6; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
-    html += `CURRENT RESERVATIONS (${groups.length})`;
+    const visibleGroups = includePast ? groups : groups.filter(g => !isPastGroup(g.rows));
+    html += `CURRENT RESERVATIONS (${visibleGroups.length})`;
     html += '</h3>\n</div>\n';
-    
-    for (const g of groups) {
+    for (const g of visibleGroups) {
+      const past = isPastGroup(g.rows);
       const header = await buildFlightHeader(g.rows);
-      html += `<div style="border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px;">\n`;
-      html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+      const wrapperStyle = past && includePast ? 'opacity: 0.6;' : '';
+      const headerColor = past && includePast ? '#6b7280' : 'black';
+      html += `<div style="border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px; ${wrapperStyle}">\n`;
+      html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: ${headerColor};">${header}</p>\n`;
       html += buildFlightTable(g.rows);
       html += '</div>\n';
     }
@@ -189,7 +201,8 @@ export async function buildEmailDraftWithDiff(
   // showAll=true ise CURRENT RESERVATIONS'ı da göster
   if (showAll) {
     const changedKeys = new Set([...diff.newFlights, ...diff.changedFlights, ...diff.cancelledFlights]);
-    const unchangedGroups = groups.filter(g => !changedKeys.has(g.key));
+    let unchangedGroups = groups.filter(g => !changedKeys.has(g.key));
+    unchangedGroups = includePast ? unchangedGroups : unchangedGroups.filter(g => !isPastGroup(g.rows));
     
     if (unchangedGroups.length > 0) {
       html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
@@ -198,9 +211,12 @@ export async function buildEmailDraftWithDiff(
       html += '</h3>\n</div>\n';
       
       for (const g of unchangedGroups) {
+        const past = isPastGroup(g.rows);
         const header = await buildFlightHeader(g.rows);
-        html += `<div style="border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px;">\n`;
-        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+        const wrapperStyle = past && includePast ? 'opacity: 0.6;' : '';
+        const headerColor = past && includePast ? '#6b7280' : 'black';
+        html += `<div style="border-left: 4px solid #3b82f6; padding-left: 12px; margin-bottom: 20px; ${wrapperStyle}">\n`;
+        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: ${headerColor};">${header}</p>\n`;
         html += buildFlightTable(g.rows);
         html += '</div>\n';
       }
@@ -208,43 +224,64 @@ export async function buildEmailDraftWithDiff(
   }
   
   // NEW FLIGHTS (Yeşil)
-  if (diff.newFlights.length > 0) {
+  {
+    const newKeysAll = diff.newFlights || [];
+    const newKeys = includePast ? newKeysAll : newKeysAll.filter(k => {
+      const d = diff.details[k];
+      return d?.curr ? !isPastGroup(d.curr) : false;
+    });
+    if (newKeys.length > 0) {
     html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
     html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #10b981; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
-    html += `NEW FLIGHTS (${diff.newFlights.length})`;
+    html += `NEW FLIGHTS (${newKeys.length})`;
     html += '</h3>\n</div>\n';
     
-    for (const key of diff.newFlights) {
+    for (const key of newKeys) {
       const detail = diff.details[key];
       if (detail?.curr) {
         const header = await buildFlightHeader(detail.curr);
-        html += `<div style="border-left: 4px solid #10b981; padding-left: 12px; margin-bottom: 20px;">\n`;
-        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: black;">${header}</p>\n`;
+        const past = isPastGroup(detail.curr);
+        const wrapperStyle = past && includePast ? 'opacity: 0.6;' : '';
+        const headerColor = past && includePast ? '#6b7280' : 'black';
+        html += `<div style=\"border-left: 4px solid #10b981; padding-left: 12px; margin-bottom: 20px; ${wrapperStyle}\">\n`;
+        html += `<p style=\"font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: ${headerColor};\">${header}</p>\n`;
         html += buildFlightTable(detail.curr);
         html += '</div>\n';
       }
     }
+    }
   }
   
   // CHANGED FLIGHTS (Turuncu)
-  if (diff.changedFlights.length > 0) {
+  {
+    const changedAll = diff.changedFlights || [];
+    const changedKeys = includePast ? changedAll : changedAll.filter(k => {
+      const d = diff.details[k];
+      return d?.curr ? !isPastGroup(d.curr) : false;
+    });
+    if (changedKeys.length > 0) {
     html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
     html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #f59e0b; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
-    html += `CHANGED FLIGHTS (${diff.changedFlights.length})`;
+    html += `CHANGED FLIGHTS (${changedKeys.length})`;
     html += '</h3>\n</div>\n';
     
-    for (const key of diff.changedFlights) {
+    for (const key of changedKeys) {
       const detail = diff.details[key];
       if (detail?.prev && detail?.curr) {
         const prevHeader = await buildFlightHeader(detail.prev);
         const currHeader = await buildFlightHeader(detail.curr);
         
-        html += `<div style="border-left: 4px solid #f59e0b; padding-left: 12px; margin-bottom: 20px;">\n`;
-        html += `<p style="margin-top: 10px; margin-bottom: 5px; color: #7c2d12; font-size: 12px;"><strong>BEFORE:</strong> ${prevHeader}</p>\n`;
-        html += `<p style="margin-top: 5px; margin-bottom: 5px; color: #065f46; font-size: 12px;"><strong>AFTER:</strong> ${currHeader}</p>\n`;
+        const past = isPastGroup(detail.curr);
+        const wrapperStyle = past && includePast ? 'opacity: 0.6;' : '';
+        const beforeColor = past && includePast ? '#6b7280' : '#7c2d12';
+        const afterColor = past && includePast ? '#6b7280' : '#065f46';
+        html += `<div style=\"border-left: 4px solid #f59e0b; padding-left: 12px; margin-bottom: 20px; ${wrapperStyle}\">\n`;
+        html += `<p style=\"margin-top: 10px; margin-bottom: 5px; color: ${beforeColor}; font-size: 12px;\"><strong>BEFORE:</strong> ${prevHeader}</p>\n`;
+        html += `<p style=\"margin-top: 5px; margin-bottom: 5px; color: ${afterColor}; font-size: 12px;\"><strong>AFTER:</strong> ${currHeader}</p>\n`;
         
         if (detail.changes && detail.changes.length > 0) {
-          html += '<ul style="margin: 8px 0; padding-left: 20px; font-size: 11px; color: #92400e;">\n';
+          const changesColor = past && includePast ? '#6b7280' : '#92400e';
+          html += `<ul style=\"margin: 8px 0; padding-left: 20px; font-size: 11px; color: ${changesColor};\">\n`;
           detail.changes.forEach(change => {
             html += `<li>${change}</li>\n`;
           });
@@ -255,24 +292,35 @@ export async function buildEmailDraftWithDiff(
         html += '</div>\n';
       }
     }
+    }
   }
   
   // CANCELLED FLIGHTS (Kırmızı)
-  if (diff.cancelledFlights.length > 0) {
+  {
+    const cancelledAll = diff.cancelledFlights || [];
+    const cancelledKeys = includePast ? cancelledAll : cancelledAll.filter(k => {
+      const d = diff.details[k];
+      return d?.prev ? !isPastGroup(d.prev) : false;
+    });
+    if (cancelledKeys.length > 0) {
     html += '<div style="margin-top: 30px; margin-bottom: 10px;">\n';
     html += '<h3 style="margin: 0; padding: 8px 12px; background-color: #ef4444; color: white; border-radius: 6px; display: inline-block; font-size: 14px;">';
-    html += `CANCELLED FLIGHTS (${diff.cancelledFlights.length})`;
+    html += `CANCELLED FLIGHTS (${cancelledKeys.length})`;
     html += '</h3>\n</div>\n';
     
-    for (const key of diff.cancelledFlights) {
+    for (const key of cancelledKeys) {
       const detail = diff.details[key];
       if (detail?.prev) {
         const header = await buildFlightHeader(detail.prev);
-        html += `<div style="border-left: 4px solid #ef4444; padding-left: 12px; margin-bottom: 20px; opacity: 0.7;">\n`;
-        html += `<p style="font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: #7f1d1d; text-decoration: line-through;">${header}</p>\n`;
+        const past = isPastGroup(detail.prev);
+        const wrapperStyle = past && includePast ? 'opacity: 0.6;' : 'opacity: 0.7;';
+        const headerColor = past && includePast ? '#6b7280' : '#7f1d1d';
+        html += `<div style=\"border-left: 4px solid #ef4444; padding-left: 12px; margin-bottom: 20px; ${wrapperStyle}\">\n`;
+        html += `<p style=\"font-weight: bold; margin-top: 10px; margin-bottom: 5px; color: ${headerColor}; text-decoration: line-through;\">${header}</p>\n`;
         html += buildFlightTable(detail.prev);
         html += '</div>\n';
       }
+    }
     }
   }
   

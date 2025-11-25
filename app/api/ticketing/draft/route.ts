@@ -12,6 +12,7 @@ export async function GET(request: Request) {
     const uploadId = searchParams.get('uploadId');
     const debug = searchParams.get('debug');
     const showAll = searchParams.get('showAll') === '1';
+    const includePast = searchParams.get('includePast') === '1';
     if (!uploadId) return NextResponse.json({ error: 'uploadId required' }, { status: 400 });
 
     // Son 2 upload'u çek (diff için)
@@ -99,7 +100,7 @@ export async function GET(request: Request) {
       diff = diffFlights(prevGroups, groups);
     }
     
-    const email = await buildEmailDraftWithDiff(groups, diff, showAll);
+    const email = await buildEmailDraftWithDiff(groups, diff, showAll, includePast);
     if (debug === '1') {
       const matchStats = {
         total: upload.flights.length,

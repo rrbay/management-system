@@ -10,6 +10,7 @@ export default function TicketingPage() {
   const [loadingDraft, setLoadingDraft] = useState(false);
   const [error, setError] = useState<string>('');
   const [showAll, setShowAll] = useState(false);
+  const [includePast, setIncludePast] = useState(false);
   const [uploadCount, setUploadCount] = useState(0);
   const [clearing, setClearing] = useState(false);
   const [sending, setSending] = useState(false);
@@ -68,7 +69,7 @@ export default function TicketingPage() {
     if (!lastUploadId) return;
     setLoadingDraft(true);
     try {
-      const url = `/api/ticketing/draft?uploadId=${lastUploadId}${showAll ? '&showAll=1' : ''}`;
+      const url = `/api/ticketing/draft?uploadId=${lastUploadId}${showAll ? '&showAll=1' : ''}${includePast ? '&includePast=1' : ''}`;
       const res = await fetch(url);
       const json = await res.json();
       if (json.email) setEmailDraft(json.email);
@@ -262,6 +263,15 @@ export default function TicketingPage() {
               className="w-4 h-4"
             />
             <span className="text-gray-700 dark:text-gray-300">Tüm Rezervasyonları Göster</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input 
+              type="checkbox" 
+              checked={includePast} 
+              onChange={(e) => setIncludePast(e.target.checked)}
+              className="w-4 h-4"
+            />
+            <span className="text-gray-700 dark:text-gray-300">Geçmiş biletleri göster (gri)</span>
           </label>
         </div>
 
