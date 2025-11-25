@@ -314,21 +314,30 @@ export default function HotelBlockPage() {
                         if (!groupByPort) {
                           // Normal görünüm
                           return preview.rows.map((row: any, idx: number) => (
-                            <tr 
-                              key={idx} 
-                              className={`border-b ${
-                                row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
-                                row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
-                                ''
-                              }`}
-                            >
-                              <td className="px-3 py-2">{row.hotelPort}</td>
-                              <td className="px-3 py-2">{row.arrLeg}</td>
-                              <td className="px-3 py-2">{row.checkInDate}</td>
-                              <td className="px-3 py-2">{row.checkOutDate}</td>
-                              <td className="px-3 py-2">{row.depLeg}</td>
-                              <td className="px-3 py-2">{row.singleRoomCount}</td>
-                            </tr>
+                            <>
+                              <tr 
+                                key={idx} 
+                                className={`border-b ${
+                                  row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
+                                  row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
+                                  ''
+                                }`}
+                              >
+                                <td className="px-3 py-2">{row.hotelPort}</td>
+                                <td className="px-3 py-2">{row.arrLeg}</td>
+                                <td className="px-3 py-2">{row.checkInDate}</td>
+                                <td className="px-3 py-2">{row.checkOutDate}</td>
+                                <td className="px-3 py-2">{row.depLeg}</td>
+                                <td className="px-3 py-2">{row.singleRoomCount}</td>
+                              </tr>
+                              {row.status === 'changed' && row.changes && row.changes.length > 0 && (
+                                <tr className="border-b bg-yellow-50 dark:bg-yellow-900/20 text-xs">
+                                  <td colSpan={6} className="px-3 py-1 text-yellow-800 dark:text-yellow-300">
+                                    Değişiklikler: {row.changes.join(' | ')}
+                                  </td>
+                                </tr>
+                              )}
+                            </>
                           ));
                         } else {
                           // Gruplu görünüm
@@ -347,21 +356,30 @@ export default function HotelBlockPage() {
                                 </td>
                               </tr>
                               {rows.map((row: any, idx: number) => (
-                                <tr 
-                                  key={`${port}-${idx}`} 
-                                  className={`border-b ${
-                                    row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
-                                    row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
-                                    ''
-                                  }`}
-                                >
-                                  <td className="px-3 py-2 pl-8">{row.hotelPort}</td>
-                                  <td className="px-3 py-2">{row.arrLeg}</td>
-                                  <td className="px-3 py-2">{row.checkInDate}</td>
-                                  <td className="px-3 py-2">{row.checkOutDate}</td>
-                                  <td className="px-3 py-2">{row.depLeg}</td>
-                                  <td className="px-3 py-2">{row.singleRoomCount}</td>
-                                </tr>
+                                <>
+                                  <tr 
+                                    key={`${port}-${idx}`} 
+                                    className={`border-b ${
+                                      row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
+                                      row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
+                                      ''
+                                    }`}
+                                  >
+                                    <td className="px-3 py-2 pl-8">{row.hotelPort}</td>
+                                    <td className="px-3 py-2">{row.arrLeg}</td>
+                                    <td className="px-3 py-2">{row.checkInDate}</td>
+                                    <td className="px-3 py-2">{row.checkOutDate}</td>
+                                    <td className="px-3 py-2">{row.depLeg}</td>
+                                    <td className="px-3 py-2">{row.singleRoomCount}</td>
+                                  </tr>
+                                  {row.status === 'changed' && row.changes && row.changes.length > 0 && (
+                                    <tr className="border-b bg-yellow-50 dark:bg-yellow-900/20 text-xs">
+                                      <td colSpan={6} className="px-3 py-1 text-yellow-800 dark:text-yellow-300">
+                                        Değişiklikler: {row.changes.join(' | ')}
+                                      </td>
+                                    </tr>
+                                  )}
+                                </>
                               ))}
                             </>
                           ));

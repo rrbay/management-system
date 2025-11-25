@@ -1,7 +1,7 @@
 // Hotel Blokaj için diff'li Excel oluştur
 // Yeşil (yeni), Sarı (değişen), Kırmızı (iptal)
 
-import * as xlsx from 'xlsx';
+import ExcelJS from 'exceljs';
 import { HotelBlockRow } from './hotel-block-parse';
 import { HotelBlockDiffResult } from './hotel-block-diff';
 
@@ -15,17 +15,23 @@ function formatDateTime(d: Date | null): string {
   return `${dd}.${mm}.${yyyy} ${hh}:${mi}`;
 }
 
-export function buildHotelBlockExcel(
+export async function buildHotelBlockExcel(
   rows: HotelBlockRow[],
   diff: HotelBlockDiffResult | null
-): Buffer {
-  // Tablo verileri
-  const data: any[] = [];
-  
-  // Header
-  data.push(['Hotel Port', 'Arr Leg', 'Check In Date-Time', 'Check Out Date-Time', 'Dep Leg', 'SNG']);
-  
-  // Group rows by diff status
+): Promise<Buffer> {
+  const wb = new ExcelJS.Workbook();
+  const sheetFlat = wb.addWorksheet('Hotel Blokaj (Düz)');
+  sheetFlat.columns = [
+    { header: 'Hotel Port', key: 'hotelPort', width: 15 },
+    { header: 'Arr Leg', key: 'arrLeg', width: 10 },
+    { header: 'Check In Date-Time', key: 'checkIn', width: 18 },
+    { header: 'Check Out Date-Time', key: 'checkOut', width: 18 },
+    { header: 'Dep Leg', key: 'depLeg', width: 10 },
+    { header: 'SNG', key: 'sng', width: 8 },
+    { header: 'Status', key: 'status', width: 10 },
+  ];
+  sheetFlat.getColumn('status').hidden = true;
+
   const makeKey = (r: HotelBlockRow) => {
     const port = r.hotelPort || 'UNKNOWN';
     const arr = r.arrLeg || '';
@@ -34,156 +40,124 @@ export function buildHotelBlockExcel(
     const checkOut = r.checkOutDate ? r.checkOutDate.toISOString().slice(0,16) : 'NO_DATE';
     return `${port}|${arr}|${checkIn}|${checkOut}|${dep}`;
   };
-  
-  rows.forEach((r) => {
+
+  rows.forEach(r => {
     const key = makeKey(r);
     let status = 'NORMAL';
-    
     if (diff) {
       if (diff.newReservations.includes(key)) status = 'NEW';
       else if (diff.changedReservations.includes(key)) status = 'CHANGED';
     }
-    
-    data.push([
-      r.hotelPort || '',
-      r.arrLeg || '',
-      formatDateTime(r.checkInDate),
-      formatDateTime(r.checkOutDate),
-      r.depLeg || '',
-      r.singleRoomCount || 0,
-      status, // Hidden column for styling
-    ]);
+    const excelRow = sheetFlat.addRow({
+      hotelPort: r.hotelPort || '',
+      arrLeg: r.arrLeg || '',
+      checkIn: formatDateTime(r.checkInDate),
+      checkOut: formatDateTime(r.checkOutDate),
+      depLeg: r.depLeg || '',
+      sng: r.singleRoomCount || 0,
+      status,
+    });
+    styleDiffRow(excelRow, status);
   });
-  
-  // İptal edilenler (kırmızı)
+
   if (diff && diff.cancelledReservations.length > 0) {
-    diff.cancelledReservations.forEach((key) => {
+    diff.cancelledReservations.forEach(key => {
       const detail = diff.details[key];
       if (detail?.prev) {
         const r = detail.prev;
-        data.push([
-          r.hotelPort || '',
-          r.arrLeg || '',
-          formatDateTime(r.checkInDate),
-          formatDateTime(r.checkOutDate),
-          r.depLeg || '',
-          r.singleRoomCount || 0,
-          'CANCELLED',
-        ]);
+        const excelRow = sheetFlat.addRow({
+          hotelPort: r.hotelPort || '',
+          arrLeg: r.arrLeg || '',
+          checkIn: formatDateTime(r.checkInDate),
+          checkOut: formatDateTime(r.checkOutDate),
+          depLeg: r.depLeg || '',
+          sng: r.singleRoomCount || 0,
+          status: 'CANCELLED',
+        });
+        styleDiffRow(excelRow, 'CANCELLED');
       }
     });
   }
-  
-  // Workbook oluştur
-  const ws = xlsx.utils.aoa_to_sheet(data);
-  
-  // Renklendirme
-  const range = xlsx.utils.decode_range(ws['!ref'] || 'A1');
-  // İlk tabloda port başlıkları üretmek için grouping
-  // Build groups
-  const groups: Record<string, number[]> = {};
-  for (let rIndex = 1; rIndex <= range.e.r; rIndex++) {
-    const portCell = xlsx.utils.encode_cell({ r: rIndex, c: 0 });
-    const portVal = ws[portCell]?.v || 'UNKNOWN';
-    if (!groups[portVal]) groups[portVal] = [];
-    groups[portVal].push(rIndex);
-  }
 
-  // Renklendirme (satır bazlı diff durumuna göre)
-  for (let R = 1; R <= range.e.r; R++) {
-    const statusCell = xlsx.utils.encode_cell({ r: R, c: 6 });
-    const status = ws[statusCell]?.v;
-    
-    let textColor = '000000';
-    let fillColor = 'FFFFFF';
-    if (status === 'NEW') { textColor = '006100'; fillColor = 'C6EFCE'; }
-    else if (status === 'CHANGED') { textColor = '9C5700'; fillColor = 'FFEB9C'; }
-    else if (status === 'CANCELLED') { textColor = 'C00000'; fillColor = 'FFC7CE'; }
+  // Gruplu sheet
+  const sheetGrouped = wb.addWorksheet('Hotel Blokaj (Gruplu)');
+  sheetGrouped.columns = [
+    { header: 'Hotel Port Group', key: 'group', width: 22 },
+    { header: 'Arr Leg', key: 'arrLeg', width: 10 },
+    { header: 'Check In', key: 'checkIn', width: 17 },
+    { header: 'Check Out', key: 'checkOut', width: 17 },
+    { header: 'Dep Leg', key: 'depLeg', width: 10 },
+    { header: 'SNG', key: 'sng', width: 8 },
+    { header: 'Status', key: 'status', width: 10 },
+  ];
+  sheetGrouped.getColumn('status').hidden = true;
 
-    // Satırın tüm hücrelerine stil uygula
-    for (let C = 0; C <= 5; C++) {
-      const cellAddr = xlsx.utils.encode_cell({ r: R, c: C });
-      if (!ws[cellAddr]) continue;
-      
-      if (!ws[cellAddr].s) ws[cellAddr].s = {};
-      ws[cellAddr].s = {
-        font: {
-          color: { rgb: textColor },
-          bold: status !== 'NORMAL',
-        },
-        fill: {
-          patternType: 'solid',
-          fgColor: { rgb: fillColor },
-        },
-        alignment: { vertical: 'center' }
-      };
-    }
-  }
-
-  // Port başlıkları eklemek için yeni bir sheet oluştur (Gruplu görünüm)
-  const groupedData: any[] = [];
-  groupedData.push(['Hotel Port Group', 'Arr Leg', 'Check In', 'Check Out', 'Dep Leg', 'SNG', 'Status']);
-  Object.entries(groups).forEach(([port, rowIndexes]) => {
-    groupedData.push([`PORT: ${port}`, '', '', '', '', '', 'HEADER']);
-    rowIndexes.forEach(rIdx => {
-      const baseRow = [] as any[];
-      for (let C = 0; C <= 6; C++) {
-        const addr = xlsx.utils.encode_cell({ r: rIdx, c: C });
-        baseRow.push(ws[addr]?.v ?? '');
-      }
-      groupedData.push(baseRow);
-    });
+  // Group rows by port
+  const byPort: Record<string, HotelBlockRow[]> = {};
+  rows.forEach(r => {
+    const port = r.hotelPort || 'UNKNOWN';
+    if (!byPort[port]) byPort[port] = [];
+    byPort[port].push(r);
   });
-  const wsGrouped = xlsx.utils.aoa_to_sheet(groupedData);
-  const groupedRange = xlsx.utils.decode_range(wsGrouped['!ref'] || 'A1');
-  for (let R = 1; R <= groupedRange.e.r; R++) {
-    const statusCell = xlsx.utils.encode_cell({ r: R, c: 6 });
-    const status = wsGrouped[statusCell]?.v;
-    const firstCell = xlsx.utils.encode_cell({ r: R, c: 0 });
-    if (status === 'HEADER') {
-      for (let C = 0; C <= 6; C++) {
-        const addr = xlsx.utils.encode_cell({ r: R, c: C });
-        if (!wsGrouped[addr]) continue;
-        wsGrouped[addr].s = {
-          font: { bold: true, color: { rgb: '1E3A8A' } },
-          fill: { patternType: 'solid', fgColor: { rgb: 'DBEAFE' } },
-        };
+
+  Object.entries(byPort).forEach(([port, portRows]) => {
+    const headerRow = sheetGrouped.addRow({ group: `PORT: ${port}`, arrLeg: '', checkIn: '', checkOut: '', depLeg: '', sng: '', status: 'HEADER' });
+    headerRow.eachCell(cell => {
+      cell.font = { bold: true, color: { argb: 'FF1E3A8A' } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDBEAFE' } };
+    });
+    portRows.forEach(r => {
+      const key = makeKey(r);
+      let status = 'NORMAL';
+      if (diff) {
+        if (diff.newReservations.includes(key)) status = 'NEW';
+        else if (diff.changedReservations.includes(key)) status = 'CHANGED';
       }
-    } else {
-      // Diff row styles (use existing status coloring logic similar to main sheet)
-      let textColor = '000000';
-      let fillColor = 'FFFFFF';
-      if (status === 'NEW') { textColor = '006100'; fillColor = 'C6EFCE'; }
-      else if (status === 'CHANGED') { textColor = '9C5700'; fillColor = 'FFEB9C'; }
-      else if (status === 'CANCELLED') { textColor = 'C00000'; fillColor = 'FFC7CE'; }
-      for (let C = 0; C <= 6; C++) {
-        const addr = xlsx.utils.encode_cell({ r: R, c: C });
-        if (!wsGrouped[addr]) continue;
-        wsGrouped[addr].s = {
-          font: { color: { rgb: textColor }, bold: status !== 'NORMAL' },
-          fill: { patternType: 'solid', fgColor: { rgb: fillColor } },
-        };
-      }
+      const excelRow = sheetGrouped.addRow({
+        group: r.hotelPort || '',
+        arrLeg: r.arrLeg || '',
+        checkIn: formatDateTime(r.checkInDate),
+        checkOut: formatDateTime(r.checkOutDate),
+        depLeg: r.depLeg || '',
+        sng: r.singleRoomCount || 0,
+        status,
+      });
+      styleDiffRow(excelRow, status);
+    });
+    if (diff) {
+      diff.cancelledReservations.forEach(key => {
+        const detail = diff.details[key];
+        if (detail?.prev && detail.prev.hotelPort === port) {
+          const r = detail.prev;
+          const excelRow = sheetGrouped.addRow({
+            group: r.hotelPort || '',
+            arrLeg: r.arrLeg || '',
+            checkIn: formatDateTime(r.checkInDate),
+            checkOut: formatDateTime(r.checkOutDate),
+            depLeg: r.depLeg || '',
+            sng: r.singleRoomCount || 0,
+            status: 'CANCELLED',
+          });
+          styleDiffRow(excelRow, 'CANCELLED');
+        }
+      });
     }
-  }
-  wsGrouped['!cols'] = [
-    { wch: 22 }, { wch: 10 }, { wch: 17 }, { wch: 17 }, { wch: 10 }, { wch: 8 }, { hidden: true }
-  ];
-  
-  // Status kolonunu gizle
-  ws['!cols'] = [
-    { wch: 15 }, // Hotel Port
-    { wch: 10 }, // Arr Leg
-    { wch: 12 }, // Check In
-    { wch: 12 }, // Check Out
-    { wch: 10 }, // Dep Leg
-    { wch: 8 },  // SNG
-    { hidden: true }, // Status (hidden)
-  ];
-  
-  const wb = xlsx.utils.book_new();
-  xlsx.utils.book_append_sheet(wb, ws, 'Hotel Blokaj (Düz)');
-  xlsx.utils.book_append_sheet(wb, wsGrouped, 'Hotel Blokaj (Gruplu)');
-  
-  return Buffer.from(xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' }));
+  });
+
+  const buffer = await wb.xlsx.writeBuffer();
+  return Buffer.from(buffer);
+}
+
+function styleDiffRow(row: ExcelJS.Row, status: string) {
+  let fg = 'FFFFFFFF';
+  let fontColor = 'FF000000';
+  let bold = false;
+  if (status === 'NEW') { fg = 'FFC6EFCE'; fontColor = 'FF006100'; bold = true; }
+  else if (status === 'CHANGED') { fg = 'FFFFEB9C'; fontColor = 'FF9C5700'; bold = true; }
+  else if (status === 'CANCELLED') { fg = 'FFFFC7CE'; fontColor = 'FFC00000'; bold = true; }
+  row.eachCell(cell => {
+    cell.font = { color: { argb: fontColor }, bold };
+    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fg } };
+    cell.alignment = { vertical: 'middle' };
+  });
 }

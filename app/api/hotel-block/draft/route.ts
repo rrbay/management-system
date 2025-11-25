@@ -68,7 +68,7 @@ export async function GET(request: Request) {
     const emailBody = buildHotelBlockEmailBody(monthName);
     
     // Excel oluştur
-    const excelBuffer = buildHotelBlockExcel(currRows, diff);
+    const excelBuffer = await buildHotelBlockExcel(currRows, diff);
     const excelBase64 = excelBuffer.toString('base64');
     
     // Preview data (ilk 50 satır)
@@ -84,6 +84,11 @@ export async function GET(request: Request) {
         if (diff.newReservations.includes(key)) status = 'new';
         else if (diff.changedReservations.includes(key)) status = 'changed';
       }
+      let changes: string[] = [];
+      if (status === 'changed' && diff) {
+        const detail = diff.details[key];
+        if (detail?.changes) changes = detail.changes;
+      }
       return {
         hotelPort: r.hotelPort || '',
         arrLeg: r.arrLeg || '',
@@ -92,6 +97,7 @@ export async function GET(request: Request) {
         depLeg: r.depLeg || '',
         singleRoomCount: r.singleRoomCount || 0,
         status,
+        changes,
       };
     });
     
