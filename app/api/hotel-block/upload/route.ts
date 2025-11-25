@@ -7,6 +7,8 @@ export const runtime = 'nodejs';
 // Hotel Blokaj Excel yükleme - en fazla son 2 yükleme sakla
 export async function POST(request: Request) {
   try {
+    console.log('[HotelBlockUpload] POST request received');
+    
     const formData = await request.formData();
     const file = formData.get('file') as Blob | null;
     if (!file) {
@@ -14,17 +16,24 @@ export async function POST(request: Request) {
     }
 
     const filename = (file as any).name || 'hotel-block.xlsx';
+    console.log('[HotelBlockUpload] File received:', filename, 'Size:', file.size);
+    
     const buffer = Buffer.from(await file.arrayBuffer());
+    console.log('[HotelBlockUpload] Buffer created, parsing...');
+    
     const { headers, rows } = parseHotelBlockWorkbook(buffer);
+    console.log('[HotelBlockUpload] Parsed:', rows.length, 'rows');
 
     // Upload kaydı oluştur (tablo yoksa otomatik oluştur)
     // @ts-ignore hotel block models
     let upload;
     try {
+      console.log('[HotelBlockUpload] Creating upload record...');
       // @ts-ignore hotel block models
       upload = await prisma.hotelBlockUpload.create({
         data: { filename, headers },
       });
+      console.log('[HotelBlockUpload] Upload record created:', upload.id);
     } catch (e: any) {
       // Tablo yoksa otomatik oluştur
       if (e?.code === 'P2021' || /does not exist/i.test(String(e))) {
@@ -81,11 +90,12 @@ export async function POST(request: Request) {
       }
     }
 
-    // Satırları DB'ye yaz
-    for (const r of rows) {
+    // Satırları DB'ye batch insert ile yaz (çok daha hızlı)
+    if (rows.length > 0) {
+      console.log('[HotelBlockUpload] Inserting', rows.length, 'reservations...');
       // @ts-ignore hotel block models
-      await prisma.hotelBlockReservation.create({
-        data: {
+      await prisma.hotelBlockReservation.createMany({
+        data: rows.map(r => ({
           uploadId: upload.id,
           hotelPort: r.hotelPort,
           arrLeg: r.arrLeg,
@@ -94,31 +104,33 @@ export async function POST(request: Request) {
           depLeg: r.depLeg,
           singleRoomCount: r.singleRoomCount,
           rawData: r.raw,
-        },
+        })),
       });
+      console.log(`[HotelBlockUpload] Successfully created ${rows.length} reservations`);
     }
 
-    console.log(`[HotelBlockUpload] Created ${rows.length} reservations for upload ${upload.id}`);
-
     // Eski yüklemeleri temizle (en fazla 2)
+    console.log('[HotelBlockUpload] Checking for old uploads to cleanup...');
     // @ts-ignore hotel block models
     const uploads = await prisma.hotelBlockUpload.findMany({
       orderBy: { uploadedAt: 'desc' },
     });
 
     if (uploads.length > 2) {
-      const toDelete = uploads.slice(2);
-      for (const u of toDelete) {
-        // @ts-ignore hotel block models
-        await prisma.hotelBlockReservation.deleteMany({
-          where: { uploadId: u.id },
-        });
-        // @ts-ignore hotel block models
-        await prisma.hotelBlockUpload.delete({ where: { id: u.id } });
-      }
-      console.log(`[HotelBlockUpload] Deleted ${toDelete.length} old uploads`);
+      const toDeleteIds = uploads.slice(2).map(u => u.id);
+      console.log('[HotelBlockUpload] Deleting', toDeleteIds.length, 'old uploads');
+      // @ts-ignore hotel block models
+      await prisma.hotelBlockReservation.deleteMany({
+        where: { uploadId: { in: toDeleteIds } },
+      });
+      // @ts-ignore hotel block models
+      await prisma.hotelBlockUpload.deleteMany({
+        where: { id: { in: toDeleteIds } },
+      });
+      console.log(`[HotelBlockUpload] Cleanup completed`);
     }
 
+    console.log('[HotelBlockUpload] Upload process completed successfully');
     return NextResponse.json({
       success: true,
       uploadId: upload.id,

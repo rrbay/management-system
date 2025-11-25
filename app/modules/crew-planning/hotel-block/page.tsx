@@ -40,10 +40,26 @@ export default function HotelBlockPage() {
       return;
     }
     setUploading(true); setError('');
+    
+    // Timeout kontrolü - 60 saniye
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+    
     try {
       const fd = new FormData();
       fd.append('file', fileInput.files[0]);
-      const res = await fetch('/api/hotel-block/upload', { method: 'POST', body: fd });
+      const res = await fetch('/api/hotel-block/upload', { 
+        method: 'POST', 
+        body: fd,
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+      
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+      
       const json = await res.json();
       if (!json.success) {
         setError(json.error || 'Yükleme hatası');
@@ -52,7 +68,12 @@ export default function HotelBlockPage() {
         await refreshUploads();
       }
     } catch (err: any) {
-      setError(String(err));
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        setError('Yükleme çok uzun sürdü (timeout). Lütfen daha küçük bir dosya deneyin veya internet bağlantınızı kontrol edin.');
+      } else {
+        setError(String(err));
+      }
     } finally {
       setUploading(false);
     }
