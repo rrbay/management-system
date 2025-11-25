@@ -1,0 +1,50 @@
+name: Vercel Production Deploy
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Apply Prisma Migrations
+        run: npx prisma migrate deploy || echo 'No migrations to apply'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Pull Vercel Env (Production)
+        run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build (Production)
+        run: npx vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Deploy Prebuilt Artifacts
+        run: npx vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+# REQUIRED SECRETS (Settings > Secrets > Actions):
+# - VERCEL_TOKEN: Personal token from Vercel Account Settings
+# - VERCEL_ORG_ID: (Optional if using vercel pull without linking?) Not needed in this simplified flow
+# - VERCEL_PROJECT_ID: (If vercel pull complains, add) Project settings > General
+# - DATABASE_URL: Supabase PostgreSQL connection string
