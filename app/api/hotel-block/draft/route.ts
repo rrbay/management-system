@@ -71,6 +71,41 @@ export async function GET(request: Request) {
     const excelBuffer = buildHotelBlockExcel(currRows, diff);
     const excelBase64 = excelBuffer.toString('base64');
     
+    // Preview data (ilk 50 satır)
+    const previewRows = currRows.slice(0, 50).map(r => {
+      const key = `${r.hotelPort}|${r.arrLeg}|${r.checkInDate?.toISOString().split('T')[0]}|${r.checkOutDate?.toISOString().split('T')[0]}|${r.depLeg}`;
+      let status = 'normal';
+      if (diff) {
+        if (diff.newReservations.includes(key)) status = 'new';
+        else if (diff.changedReservations.includes(key)) status = 'changed';
+      }
+      return {
+        hotelPort: r.hotelPort || '',
+        arrLeg: r.arrLeg || '',
+        checkInDate: r.checkInDate ? r.checkInDate.toISOString().split('T')[0] : '',
+        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().split('T')[0] : '',
+        depLeg: r.depLeg || '',
+        singleRoomCount: r.singleRoomCount || 0,
+        status,
+      };
+    });
+    
+    // Cancelled rows
+    const cancelledRows = diff ? diff.cancelledReservations.slice(0, 20).map(key => {
+      const detail = diff.details[key];
+      const r = detail?.prev;
+      if (!r) return null;
+      return {
+        hotelPort: r.hotelPort || '',
+        arrLeg: r.arrLeg || '',
+        checkInDate: r.checkInDate ? r.checkInDate.toISOString().split('T')[0] : '',
+        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().split('T')[0] : '',
+        depLeg: r.depLeg || '',
+        singleRoomCount: r.singleRoomCount || 0,
+        status: 'cancelled',
+      };
+    }).filter(Boolean) : [];
+    
     return NextResponse.json({
       emailBody,
       excelBase64,
@@ -82,6 +117,11 @@ export async function GET(request: Request) {
             cancelled: diff.cancelledReservations.length,
           }
         : null,
+      preview: {
+        rows: previewRows,
+        cancelled: cancelledRows,
+        totalRows: currRows.length,
+      },
     });
   } catch (err) {
     console.error('Hotel block draft error', err);

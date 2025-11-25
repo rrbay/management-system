@@ -81,20 +81,20 @@ export function buildHotelBlockExcel(
     const statusCell = xlsx.utils.encode_cell({ r: R, c: 6 });
     const status = ws[statusCell]?.v;
     
-    let bgColor = 'FFFFFF'; // Beyaz
-    if (status === 'NEW') bgColor = 'C6EFCE'; // Yeşil
-    else if (status === 'CHANGED') bgColor = 'FFEB9C'; // Sarı
-    else if (status === 'CANCELLED') bgColor = 'FFC7CE'; // Kırmızı
+    let textColor = '000000'; // Siyah
+    if (status === 'NEW') textColor = '006100'; // Yeşil
+    else if (status === 'CHANGED') textColor = '9C5700'; // Sarı/Turuncu
+    else if (status === 'CANCELLED') textColor = 'C00000'; // Kırmızı
     
-    // Satırın tüm hücrelerine renk uygula
+    // Satırın tüm hücrelerine yazı rengi uygula
     for (let C = 0; C <= 5; C++) {
       const cellAddr = xlsx.utils.encode_cell({ r: R, c: C });
       if (!ws[cellAddr]) continue;
       
       if (!ws[cellAddr].s) ws[cellAddr].s = {};
-      ws[cellAddr].s.fill = {
-        patternType: 'solid',
-        fgColor: { rgb: bgColor },
+      ws[cellAddr].s.font = {
+        color: { rgb: textColor },
+        bold: status !== 'NORMAL',
       };
     }
   }

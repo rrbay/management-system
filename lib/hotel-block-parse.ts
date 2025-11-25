@@ -106,7 +106,12 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
   if (!sheetName) throw new Error('Excel dosyası boş');
   
   const sheet = workbook.Sheets[sheetName];
-  const jsonData = xlsx.utils.sheet_to_json(sheet, { raw: false, defval: null });
+  // defval: '' yerine null kullan, blankrows: false ile boş satırları da al
+  const jsonData = xlsx.utils.sheet_to_json(sheet, { 
+    raw: false, 
+    defval: '',
+    blankrows: true 
+  });
   
   if (!jsonData.length) throw new Error('Excel dosyasında veri yok');
   
@@ -159,7 +164,12 @@ export function parseHotelBlockWorkbook(buffer: Buffer): {
       }
     });
     
-    rows.push(row);
+    // Sadece tamamen boş olmayan satırları ekle
+    const hasData = row.hotelPort || row.arrLeg || row.checkInDate || 
+                    row.checkOutDate || row.depLeg || row.singleRoomCount;
+    if (hasData) {
+      rows.push(row);
+    }
   }
   
   console.log(`[HotelBlockParse] Parsed ${rows.length} rows`);

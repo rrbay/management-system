@@ -16,6 +16,7 @@ export default function HotelBlockPage() {
   const [toEmails, setToEmails] = useState<string[]>(['']);
   const [ccEmails, setCcEmails] = useState<string[]>(['']);
   const [emailSubject, setEmailSubject] = useState('Hotel Blokaj Update');
+  const [preview, setPreview] = useState<any>(null);
 
   async function refreshUploads() {
     try {
@@ -91,6 +92,7 @@ export default function HotelBlockPage() {
         setExcelBase64(json.excelBase64);
         setFilename(json.filename);
         setDiff(json.diff);
+        setPreview(json.preview);
       }
     } catch (e) { console.error(e); }
     finally { setLoadingDraft(false); }
@@ -248,6 +250,67 @@ export default function HotelBlockPage() {
                 </div>
               )}
             </div>
+
+            {/* Önizleme Tablosu */}
+            {preview && preview.rows && preview.rows.length > 0 && (
+              <div className="mb-6 border rounded-lg overflow-hidden">
+                <div className="bg-gray-100 dark:bg-gray-700 px-4 py-3 border-b">
+                  <h3 className="text-sm font-semibold">
+                    Excel Önizleme ({preview.rows.length} / {preview.totalRows} satır)
+                  </h3>
+                </div>
+                <div className="overflow-x-auto max-h-96 overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-gray-50 dark:bg-gray-800 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium">Hotel Port</th>
+                        <th className="px-3 py-2 text-left font-medium">Arr Leg</th>
+                        <th className="px-3 py-2 text-left font-medium">Check In</th>
+                        <th className="px-3 py-2 text-left font-medium">Check Out</th>
+                        <th className="px-3 py-2 text-left font-medium">Dep Leg</th>
+                        <th className="px-3 py-2 text-left font-medium">SNG</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preview.rows.map((row: any, idx: number) => (
+                        <tr 
+                          key={idx} 
+                          className={`border-b ${
+                            row.status === 'new' ? 'text-green-700 dark:text-green-400 font-semibold' :
+                            row.status === 'changed' ? 'text-yellow-700 dark:text-yellow-400 font-semibold' :
+                            ''
+                          }`}
+                        >
+                          <td className="px-3 py-2">{row.hotelPort}</td>
+                          <td className="px-3 py-2">{row.arrLeg}</td>
+                          <td className="px-3 py-2">{row.checkInDate}</td>
+                          <td className="px-3 py-2">{row.checkOutDate}</td>
+                          <td className="px-3 py-2">{row.depLeg}</td>
+                          <td className="px-3 py-2">{row.singleRoomCount}</td>
+                        </tr>
+                      ))}
+                      {preview.cancelled && preview.cancelled.length > 0 && preview.cancelled.map((row: any, idx: number) => (
+                        <tr key={`c-${idx}`} className="border-b text-red-700 dark:text-red-400 font-semibold">
+                          <td className="px-3 py-2">{row.hotelPort}</td>
+                          <td className="px-3 py-2">{row.arrLeg}</td>
+                          <td className="px-3 py-2">{row.checkInDate}</td>
+                          <td className="px-3 py-2">{row.checkOutDate}</td>
+                          <td className="px-3 py-2">{row.depLeg}</td>
+                          <td className="px-3 py-2">{row.singleRoomCount}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="bg-gray-50 dark:bg-gray-700 px-4 py-2 text-xs text-gray-600 dark:text-gray-400">
+                  <span className="text-green-600 dark:text-green-400 font-semibold">Yeşil: Yeni</span>
+                  <span className="mx-3">|</span>
+                  <span className="text-yellow-600 dark:text-yellow-400 font-semibold">Sarı: Değişen</span>
+                  <span className="mx-3">|</span>
+                  <span className="text-red-600 dark:text-red-400 font-semibold">Kırmızı: İptal</span>
+                </div>
+              </div>
+            )}
 
             {/* Email Gönderme */}
             <div className="border-t pt-6 space-y-4">
