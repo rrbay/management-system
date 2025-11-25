@@ -17,7 +17,7 @@ export default function HotelBlockPage() {
   const [ccEmails, setCcEmails] = useState<string[]>(['']);
   const [emailSubject, setEmailSubject] = useState('Hotel Blokaj Update');
   const [preview, setPreview] = useState<any>(null);
-  const [groupByPort, setGroupByPort] = useState(false);
+  const [groupByPort, setGroupByPort] = useState(true); // Varsayılan gruplu
 
   async function refreshUploads() {
     try {
@@ -210,6 +210,34 @@ export default function HotelBlockPage() {
           <button disabled={uploading} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
             {uploading ? 'Yükleniyor...' : 'Yükle'}
           </button>
+          {uploadCount > 0 && (
+            <button
+              type="button"
+              onClick={async () => {
+                try {
+                  const res = await fetch('/api/hotel-block/clear', { method: 'POST' });
+                  const json = await res.json();
+                  if (json.success) {
+                    setLastUploadId(null);
+                    setDiff(null);
+                    setPreview(null);
+                    setEmailBody('');
+                    setExcelBase64('');
+                    setFilename('');
+                    await refreshUploads();
+                    alert('Veriler temizlendi');
+                  } else {
+                    alert('Temizleme hatası: ' + (json.error || '')); 
+                  }
+                } catch (e: any) {
+                  alert('Temizleme hatası: ' + String(e));
+                }
+              }}
+              className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-50"
+            >
+              Verileri Temizle
+            </button>
+          )}
         </form>
         {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </section>
@@ -275,8 +303,8 @@ export default function HotelBlockPage() {
                       <tr>
                         <th className="px-3 py-2 text-left font-medium">Hotel Port</th>
                         <th className="px-3 py-2 text-left font-medium">Arr Leg</th>
-                        <th className="px-3 py-2 text-left font-medium">Check In</th>
-                        <th className="px-3 py-2 text-left font-medium">Check Out</th>
+                        <th className="px-3 py-2 text-left font-medium">Check In (Tarih/Saat)</th>
+                        <th className="px-3 py-2 text-left font-medium">Check Out (Tarih/Saat)</th>
                         <th className="px-3 py-2 text-left font-medium">Dep Leg</th>
                         <th className="px-3 py-2 text-left font-medium">SNG</th>
                       </tr>

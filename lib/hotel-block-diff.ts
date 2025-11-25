@@ -18,13 +18,22 @@ export interface HotelBlockDiffResult {
 }
 
 // Group key oluştur
+function formatDateTime(d: Date | null): string {
+  if (!d) return 'NO_DATE';
+  const yyyy = d.getUTCFullYear();
+  const mm = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const dd = String(d.getUTCDate()).padStart(2, '0');
+  const hh = String(d.getUTCHours()).padStart(2, '0');
+  const mi = String(d.getUTCMinutes()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`; // minute precision
+}
+
 function makeGroupKey(row: HotelBlockRow): string {
   const port = row.hotelPort || 'UNKNOWN';
   const arr = row.arrLeg || '';
   const dep = row.depLeg || '';
-  const checkIn = row.checkInDate ? row.checkInDate.toISOString().split('T')[0] : 'NO_DATE';
-  const checkOut = row.checkOutDate ? row.checkOutDate.toISOString().split('T')[0] : 'NO_DATE';
-  
+  const checkIn = formatDateTime(row.checkInDate);
+  const checkOut = formatDateTime(row.checkOutDate);
   return `${port}|${arr}|${checkIn}|${checkOut}|${dep}`;
 }
 
@@ -76,6 +85,18 @@ export function diffHotelBlocks(
         changes.push(
           `SNG: ${prev.singleRoomCount || 0} → ${curr.singleRoomCount || 0}`
         );
+      }
+
+      // Time change detection
+      if (prev.checkInDate && curr.checkInDate) {
+        const prevIn = formatDateTime(prev.checkInDate);
+        const currIn = formatDateTime(curr.checkInDate);
+        if (prevIn !== currIn) changes.push(`CheckIn: ${prevIn} → ${currIn}`);
+      }
+      if (prev.checkOutDate && curr.checkOutDate) {
+        const prevOut = formatDateTime(prev.checkOutDate);
+        const currOut = formatDateTime(curr.checkOutDate);
+        if (prevOut !== currOut) changes.push(`CheckOut: ${prevOut} → ${currOut}`);
       }
       
       if (changes.length > 0) {

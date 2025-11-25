@@ -72,8 +72,13 @@ export async function GET(request: Request) {
     const excelBase64 = excelBuffer.toString('base64');
     
     // Preview data (ilk 50 satır)
+    function previewKey(r: HotelBlockRow) {
+      const inStr = r.checkInDate ? r.checkInDate.toISOString().slice(0,16) : 'NO_DATE';
+      const outStr = r.checkOutDate ? r.checkOutDate.toISOString().slice(0,16) : 'NO_DATE';
+      return `${r.hotelPort}|${r.arrLeg}|${inStr}|${outStr}|${r.depLeg}`;
+    }
     const previewRows = currRows.slice(0, 50).map(r => {
-      const key = `${r.hotelPort}|${r.arrLeg}|${r.checkInDate?.toISOString().split('T')[0]}|${r.checkOutDate?.toISOString().split('T')[0]}|${r.depLeg}`;
+      const key = previewKey(r);
       let status = 'normal';
       if (diff) {
         if (diff.newReservations.includes(key)) status = 'new';
@@ -82,8 +87,8 @@ export async function GET(request: Request) {
       return {
         hotelPort: r.hotelPort || '',
         arrLeg: r.arrLeg || '',
-        checkInDate: r.checkInDate ? r.checkInDate.toISOString().split('T')[0] : '',
-        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().split('T')[0] : '',
+        checkInDate: r.checkInDate ? r.checkInDate.toISOString().slice(0,16).replace('T',' ') : '',
+        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().slice(0,16).replace('T',' ') : '',
         depLeg: r.depLeg || '',
         singleRoomCount: r.singleRoomCount || 0,
         status,
@@ -98,8 +103,8 @@ export async function GET(request: Request) {
       return {
         hotelPort: r.hotelPort || '',
         arrLeg: r.arrLeg || '',
-        checkInDate: r.checkInDate ? r.checkInDate.toISOString().split('T')[0] : '',
-        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().split('T')[0] : '',
+        checkInDate: r.checkInDate ? r.checkInDate.toISOString().slice(0,16).replace('T',' ') : '',
+        checkOutDate: r.checkOutDate ? r.checkOutDate.toISOString().slice(0,16).replace('T',' ') : '',
         depLeg: r.depLeg || '',
         singleRoomCount: r.singleRoomCount || 0,
         status: 'cancelled',

@@ -13,89 +13,107 @@ export interface HotelBlockRow {
   raw: Record<string, any>;
 }
 
-// Tarih parse (GMT+0)
+// Tarih + Saat parse (GMT+0) - Turkish ÖÖ / ÖS desteği
 function parseDate(val: any): Date | null {
-  // Log için orijinal değeri sakla
   const originalVal = val;
-  
-  if (!val) return null;
-  if (val instanceof Date) {
-    // Zaten Date objesi, UTC'ye çevir
+  if (val === null || val === undefined || val === '') return null;
+
+  // Excel serial number (içinde saat olabilir - fractional day)
+  if (typeof val === 'number') {
+    const base = new Date(Math.round((val - 25569) * 86400 * 1000)); // include time fraction
+    return new Date(Date.UTC(
+      base.getUTCFullYear(),
+      base.getUTCMonth(),
+      base.getUTCDate(),
+      base.getUTCHours(),
+      base.getUTCMinutes(),
+      base.getUTCSeconds(),
+      0
+    ));
+  }
+
+  // Date instance
+  if (val instanceof Date && !isNaN(val.getTime())) {
     return new Date(Date.UTC(
       val.getFullYear(),
       val.getMonth(),
       val.getDate(),
-      0, 0, 0, 0
+      val.getHours(),
+      val.getMinutes(),
+      val.getSeconds(),
+      0
     ));
   }
-  
-  // Excel serial number
-  if (typeof val === 'number') {
-    const utcDays = Math.floor(val - 25569);
-    const utcValue = utcDays * 86400;
-    const date = new Date(utcValue * 1000);
+
+  let str = String(val).trim();
+  if (!str) return null;
+
+  // Normalleştir: özel boşlukları, çift boşlukları tek boşluğa indir
+  str = str.replace(/\u202F/g, ' ').replace(/\s+/g, ' ').trim();
+
+  // ÖÖ / ÖS (AM/PM) tespiti
+  let ampm: 'AM' | 'PM' | null = null;
+  if (/\bÖÖ\b/i.test(str)) ampm = 'AM';
+  if (/\bÖS\b/i.test(str)) ampm = 'PM';
+  str = str.replace(/\bÖÖ\b|\bÖS\b/gi, '').trim();
+
+  // Pattern: DD.MM.YYYY HH[:| ]MM[:| ]SS (opsiyonel) veya HH MM SS
+  const dateTimeRegex = /^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\s+(\d{1,2})(?:[:\s](\d{1,2}))?(?:[:\s](\d{1,2}))?$/;
+  const dtMatch = str.match(dateTimeRegex);
+  if (dtMatch) {
+    const [, d, m, y, hhRaw, mmRaw, ssRaw] = dtMatch;
+    let hh = parseInt(hhRaw || '0');
+    const mm = parseInt(mmRaw || '0');
+    const ss = parseInt(ssRaw || '0');
+    if (ampm === 'PM' && hh < 12) hh += 12;
+    if (ampm === 'AM' && hh === 12) hh = 0;
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), hh, mm, ss, 0));
+  }
+
+  // Sadece tarih: DD.MM.YYYY
+  const dmyOnly = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
+  if (dmyOnly) {
+    const [, d, m, y] = dmyOnly;
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
+  }
+
+  // ISO benzeri: YYYY-MM-DD HH:MM(:SS)?
+  const isoLike = str.match(/^(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})(?:[ T](\d{1,2})(?::(\d{1,2})(?::(\d{1,2}))?)?)?$/);
+  if (isoLike) {
+    const [, y, m, d, hhRaw, mmRaw, ssRaw] = isoLike;
+    let hh = parseInt(hhRaw || '0');
+    const mm = parseInt(mmRaw || '0');
+    const ss = parseInt(ssRaw || '0');
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), hh, mm, ss, 0));
+  }
+
+  // US format MM/DD/YYYY HH:MM AM/PM
+  const usFmt = str.match(/^(\d{1,2})[\/](\d{1,2})[\/](\d{4})(?:\s+(\d{1,2})(?::(\d{1,2}))?(?::(\d{1,2}))?)?$/);
+  if (usFmt) {
+    const [, m, d, y, hhRaw, mmRaw, ssRaw] = usFmt;
+    let hh = parseInt(hhRaw || '0');
+    const mm = parseInt(mmRaw || '0');
+    const ss = parseInt(ssRaw || '0');
+    if (ampm === 'PM' && hh < 12) hh += 12;
+    if (ampm === 'AM' && hh === 12) hh = 0;
+    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), hh, mm, ss, 0));
+  }
+
+  // Native Date fallback
+  const native = new Date(str);
+  if (!isNaN(native.getTime())) {
     return new Date(Date.UTC(
-      date.getUTCFullYear(),
-      date.getUTCMonth(),
-      date.getUTCDate(),
-      0, 0, 0, 0
+      native.getFullYear(),
+      native.getMonth(),
+      native.getDate(),
+      native.getHours(),
+      native.getMinutes(),
+      native.getSeconds(),
+      0
     ));
   }
-  
-  // String parse
-  const str = String(val).trim();
-  if (!str || str === 'null' || str === 'undefined') return null;
-  
-  // DD.MM.YYYY HH:MM:SS ÖÖ/ÖS formatı (saat bilgisini görmezden gel)
-  // Örnek: "2.12.2025 11:15:00 ÖÖ" veya "2.12.2025  11 15 00 ÖÖ"
-  const dateTimeMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})\s+/);
-  if (dateTimeMatch) {
-    const [, d, m, y] = dateTimeMatch;
-    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
-  }
-  
-  // DD.MM.YYYY veya DD/MM/YYYY
-  const dmyMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
-  if (dmyMatch) {
-    const [, d, m, y] = dmyMatch;
-    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
-  }
-  
-  // YYYY-MM-DD (ISO format)
-  const isoMatch = str.match(/^(\d{4})[\.\/\-](\d{1,2})[\.\/\-](\d{1,2})$/);
-  if (isoMatch) {
-    const [, y, m, d] = isoMatch;
-    return new Date(Date.UTC(parseInt(y), parseInt(m) - 1, parseInt(d), 0, 0, 0, 0));
-  }
-  
-  // MM/DD/YYYY (US format)
-  const mdyMatch = str.match(/^(\d{1,2})[\.\/\-](\d{1,2})[\.\/\-](\d{4})$/);
-  if (mdyMatch) {
-    const [, m, d, y] = mdyMatch;
-    const month = parseInt(m);
-    const day = parseInt(d);
-    // Eğer gün 12'den büyükse DD/MM formatı olmalı
-    if (day > 12) {
-      return new Date(Date.UTC(parseInt(y), month - 1, day, 0, 0, 0, 0));
-    }
-    // Aksi halde kontrol et
-    return new Date(Date.UTC(parseInt(y), month - 1, day, 0, 0, 0, 0));
-  }
-  
-  // Fallback - native Date parse
-  try {
-    const date = new Date(str);
-    if (!isNaN(date.getTime())) {
-      return new Date(Date.UTC(
-        date.getFullYear(),
-        date.getMonth(),
-        date.getDate(),
-        0, 0, 0, 0
-      ));
-    }
-  } catch {}
-  
-  console.warn('[HotelBlockParse] Could not parse date. Original value:', originalVal, '| String:', str, '| Type:', typeof originalVal);
+
+  console.warn('[HotelBlockParse] Could not parse date-time', originalVal);
   return null;
 }
 
