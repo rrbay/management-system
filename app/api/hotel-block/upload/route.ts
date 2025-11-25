@@ -17,11 +17,69 @@ export async function POST(request: Request) {
     const buffer = Buffer.from(await file.arrayBuffer());
     const { headers, rows } = parseHotelBlockWorkbook(buffer);
 
-    // Upload kaydı oluştur
+    // Upload kaydı oluştur (tablo yoksa otomatik oluştur)
     // @ts-ignore hotel block models
-    const upload = await prisma.hotelBlockUpload.create({
-      data: { filename, headers },
-    });
+    let upload;
+    try {
+      // @ts-ignore hotel block models
+      upload = await prisma.hotelBlockUpload.create({
+        data: { filename, headers },
+      });
+    } catch (e: any) {
+      // Tablo yoksa otomatik oluştur
+      if (e?.code === 'P2021' || /does not exist/i.test(String(e))) {
+        try {
+          console.log('[HotelBlockUpload] Creating tables...');
+          
+          // Eski tabloları sil ve yeniden oluştur
+          await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "HotelBlockReservation" CASCADE;`);
+          await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "HotelBlockUpload" CASCADE;`);
+          
+          // Tabloları oluştur
+          await prisma.$executeRawUnsafe(`
+            CREATE TABLE "HotelBlockUpload" (
+              "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              "filename" TEXT NOT NULL,
+              "uploadedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+              "headers" JSONB NOT NULL
+            );
+          `);
+          
+          await prisma.$executeRawUnsafe(`
+            CREATE TABLE "HotelBlockReservation" (
+              "id" TEXT NOT NULL PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              "uploadId" TEXT NOT NULL,
+              "hotelPort" TEXT,
+              "arrLeg" TEXT,
+              "checkInDate" TIMESTAMP(3),
+              "checkOutDate" TIMESTAMP(3),
+              "depLeg" TEXT,
+              "singleRoomCount" INTEGER,
+              "rawData" JSONB,
+              CONSTRAINT "HotelBlockReservation_uploadId_fkey" FOREIGN KEY ("uploadId") REFERENCES "HotelBlockUpload"("id") ON DELETE RESTRICT ON UPDATE CASCADE
+            );
+          `);
+          
+          await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HotelBlockUpload_uploadedAt_idx" ON "HotelBlockUpload"("uploadedAt");`);
+          await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HotelBlockReservation_uploadId_idx" ON "HotelBlockReservation"("uploadId");`);
+          await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HotelBlockReservation_hotelPort_checkInDate_idx" ON "HotelBlockReservation"("hotelPort", "checkInDate");`);
+          
+          console.log('[HotelBlockUpload] Tables created successfully');
+          
+          // Tekrar dene
+          // @ts-ignore hotel block models
+          upload = await prisma.hotelBlockUpload.create({
+            data: { filename, headers },
+          });
+        } catch (createErr: any) {
+          return NextResponse.json({
+            error: 'Tablolar oluşturulamadı: ' + String(createErr),
+          }, { status: 500 });
+        }
+      } else {
+        throw e;
+      }
+    }
 
     // Satırları DB'ye yaz
     for (const r of rows) {
