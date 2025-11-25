@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
 
+// Nodemailer Node.js runtime gerektirir (Edge desteklemez)
+export const runtime = 'nodejs';
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -20,11 +23,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // SMTP ayarları - .env.local'den al
+    // SMTP ayarları - .env.local'den al ve host'u normalize et
+    const rawHost = process.env.SMTP_HOST || 'smtp.gmail.com';
+    const host = rawHost.replace(/^\w+:\/\//, '').trim(); // olası 'smtp://', 'smtps://', 'https://' vb. kaldır
+    const port = Number(process.env.SMTP_PORT || (process.env.SMTP_SECURE === 'true' ? 465 : 587));
+    const secure = process.env.SMTP_SECURE === 'true' || port === 465;
+
+    // Basit host doğrulaması (geçersiz karakterleri engelle)
+    if (!/^[A-Za-z0-9.-]+$/.test(host)) {
+      return NextResponse.json(
+        { success: false, error: `SMTP_HOST geçersiz: "${rawHost}"` },
+        { status: 400 }
+      );
+    }
+
     const transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_SECURE === 'true',
+      host,
+      port,
+      secure,
       auth: {
         user: process.env.SMTP_USER,
         pass: process.env.SMTP_PASS,
