@@ -84,3 +84,31 @@ model TicketFlight {
   @@index([uploadId])
   @@index([pairingRoute, depDateTime])
 }
+
+// Hotel Blokaj modelleri
+// Son 2 yükleme saklanır, diff ile karşılaştırılır
+model HotelBlockUpload {
+  id           String              @id @default(cuid())
+  filename     String
+  uploadedAt   DateTime            @default(now())
+  headers      Json
+  reservations HotelBlockReservation[]
+
+  @@index([uploadedAt])
+}
+
+model HotelBlockReservation {
+  id              String           @id @default(cuid())
+  uploadId        String
+  upload          HotelBlockUpload @relation(fields: [uploadId], references: [id])
+  hotelPort       String?          // Hotel Port
+  arrLeg          String?          // Arr Leg
+  checkInDate     DateTime?        // Check In Date (GMT+0)
+  checkOutDate    DateTime?        // Check Out Date (GMT+0)
+  depLeg          String?          // Dep Leg
+  singleRoomCount Int?             // Single Room Count W/O Crew -> SNG
+  rawData         Json?            // Tüm orijinal kolonlar
+
+  @@index([uploadId])
+  @@index([hotelPort, checkInDate])
+}
