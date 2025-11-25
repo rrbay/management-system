@@ -27,10 +27,12 @@ jobs:
       - name: Generate Prisma Client
         run: npx prisma generate
 
-      - name: Apply Prisma Migrations
-        run: npx prisma migrate deploy || echo 'No migrations to apply'
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      # Migrations already applied - skip deploy to avoid pgbouncer transaction issues
+      # - name: Apply Prisma Migrations
+      #   run: npx prisma migrate deploy || echo 'No migrations to apply'
+      #   timeout-minutes: 2
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
       - name: Pull Vercel Env (Production)
         run: npx vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
