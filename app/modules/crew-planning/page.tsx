@@ -18,6 +18,14 @@ export default function CrewPlanningPage() {
       color: "bg-indigo-600",
       features: ["Ticket Booking", "Travel Planning", "Cost Tracking"],
     },
+    {
+      name: "Statistics",
+      description: "Crew performance analysis and efficiency tracking",
+      icon: "📊",
+      href: "/modules/crew-planning/statistics",
+      color: "bg-purple-600",
+      features: ["Performance Metrics", "Efficiency Analysis", "Group Comparison"],
+    },
   ];
 
   return (
@@ -74,7 +82,7 @@ export default function CrewPlanningPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
           {subModules.map((module) => (
             <Link
               key={module.href}

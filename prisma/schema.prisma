@@ -28,12 +28,21 @@ model CrewMember {
   importId        String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  
+  // Crew Statistics fields
+  companyId       String?          // Company ID
+  dutyType        String?          // Duty Type
+  rankType        String?          // Rank Type
+  fleetType       String?          // Fleet Type
+  startDate       DateTime?        // Start Date (işe giriş tarihi)
+  companyFT       String?          // Company FT (930:25 formatında saat:dakika)
 
   import          CrewImport? @relation(fields: [importId], references: [id])
   ticketFlights   TicketFlight[]
 
   @@index([employeeCode])
   @@index([status])
+  @@index([dutyType, rankType, fleetType])
 }
 
 model CrewImport {
