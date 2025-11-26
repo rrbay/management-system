@@ -20,7 +20,9 @@ export async function GET(request: Request) {
         skip,
         take: limit,
         orderBy: { id: 'asc' },
-        include: {
+        select: {
+          id: true,
+          rawData: true,
           import: {
             select: {
               filename: true,
