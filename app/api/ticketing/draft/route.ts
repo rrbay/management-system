@@ -20,7 +20,23 @@ export async function GET(request: Request) {
     const uploads = await prisma.ticketUpload.findMany({ 
       orderBy: { uploadedAt: 'desc' }, 
       take: 2, 
-      include: { flights: { include: { crewMember: true } } } 
+      include: { 
+        flights: { 
+          include: { 
+            crewMember: {
+              select: {
+                id: true,
+                rawData: true,
+                passportExpiry: true,
+                phone: true,
+                nationality: true,
+                passportNumber: true,
+                position: true
+              }
+            }
+          } 
+        } 
+      } 
     });
     
     // Uçuşları ve eşleşmiş crewMember verisini çek

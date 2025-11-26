@@ -20,20 +20,29 @@ export default function TicketingPage() {
 
   async function refreshDiff() {
     try {
+      console.log('[refreshDiff] Fetching diff...');
       const res = await fetch('/api/ticketing/diff');
       const json = await res.json();
+      console.log('[refreshDiff] Response:', json);
       if (json.diff) {
         setDiff(json.diff);
         setLastUploadId(json.currUploadId);
+        console.log('[refreshDiff] Diff set:', {
+          newFlights: json.diff.newFlights?.length,
+          cancelledFlights: json.diff.cancelledFlights?.length,
+          changedFlights: json.diff.changedFlights?.length
+        });
       } else {
+        console.log('[refreshDiff] No diff in response');
         setDiff(null);
       }
       // Upload sayısını da al
       const uploadsRes = await fetch('/api/ticketing/uploads');
       const uploadsData = await uploadsRes.json();
       setUploadCount(uploadsData.length || 0);
+      console.log('[refreshDiff] Upload count:', uploadsData.length);
     } catch (e) {
-      console.error(e);
+      console.error('[refreshDiff] Error:', e);
     }
   }
 
